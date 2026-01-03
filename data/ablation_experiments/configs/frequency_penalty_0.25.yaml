@@ -1,0 +1,30 @@
+input_repo_id: mlfoundations-dev/stackexchange-tezos-sandboxes
+agent:
+  name: terminus-2
+  model_name: hosted_vllm/glm
+  kwargs:
+    temperature: 1.0
+    max_episodes: 128
+    enable_summarize: true
+    proactive_summarization_threshold: 8192
+    interleaved_thinking: false
+    parser_name: json
+    tmux_pane_width: 160
+    tmux_pane_height: 40
+    trajectory_config:
+      raw_content: true
+      linear_history: true
+    extra_body:
+      chat_template_kwargs:
+        enable_thinking: true
+    extra_completion_params:
+      frequency_penalty: 0.25
+job:
+  n_concurrent: 64
+  n_attempts: 1
+  max_retries: 0
+  timeout_multiplier: 2.0
+  disable_verification: true
+experiment_name: frequency_penalty_0.25
+description: Frequency penalty = 0.25
+output_repo_suffix: exp_tas_frequency_penalty_0.25

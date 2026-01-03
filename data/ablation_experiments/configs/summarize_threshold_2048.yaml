@@ -1,0 +1,28 @@
+input_repo_id: mlfoundations-dev/stackexchange-tezos-sandboxes
+agent:
+  name: terminus-2
+  model_name: hosted_vllm/glm
+  kwargs:
+    temperature: 1.0
+    max_episodes: 128
+    enable_summarize: true
+    proactive_summarization_threshold: 2048
+    interleaved_thinking: false
+    parser_name: json
+    tmux_pane_width: 160
+    tmux_pane_height: 40
+    trajectory_config:
+      raw_content: true
+      linear_history: true
+    extra_body:
+      chat_template_kwargs:
+        enable_thinking: true
+job:
+  n_concurrent: 64
+  n_attempts: 1
+  max_retries: 0
+  timeout_multiplier: 2.0
+  disable_verification: true
+experiment_name: summarize_threshold_2048
+description: Proactive summarization threshold = 2048 tokens
+output_repo_suffix: exp_tas_summarize_threshold_2048
