@@ -2,20 +2,20 @@
 
 ## What is HPC Launch?
 
-HPC launch is an infrastructure-aware master framework designed to allow a wide range of experiments to be launched via the command line. It is the best starting point for those who are new to DC-Agent and want to get up and running quickly.
+HPC launch is an infrastructure-aware master framework designed to allow a wide range of experiments to be launched via the command line. It is the best starting point for those who are new to OT-Agent and want to get up and running quickly.
 
 ## Which HPC Launch do I need?
 
-There are actually two HPC launchers in DC-Agent right now, one for RL and one for SFT, datagen and model consolidation. If you are interested in RL please refer to `dc-agent/train/hpc`; otherwise, continue here.
+There are actually two HPC launchers in OT-Agent right now, one for RL and one for SFT, datagen and model consolidation. If you are interested in RL please refer to `OpenThoughts-Agent/rl/hpc`; otherwise, continue here.
 
 ## What job types can I launch with HPC launch?
 
-All jobs start with `python -m hpc.launch --job_type <mode>`. The supported modes are:
-- `train` (default): launches SFT/finetuning runs driven by llama-factory configs.
+All jobs start with `python -m hpc.launch --job_type <mode>`. Passing `--job_type` is mandatory. The supported modes are:
+- `sft` (default): launches SFT/finetuning runs driven by llama-factory configs.
+- `sft_mca`: identical to `sft` but forces MCA-aware sbatch templates and env exports.
+- `pretokenize`: prepares tokenized datasets ahead of SFT jobs using the same config inputs.
 - `datagen`: executes dataset generators to produce tasks, traces, or both.
 - `consolidate`: merges ZeRO-sharded checkpoints into FP32 weights using the consolidate sbatch templates.
-
-You can optionally schedule evaluations after a `train` job by supplying `--eval_tasks`; the launcher submits the eval job once training completes.
 
 ## Before you launch
 
@@ -23,8 +23,8 @@ Please review this checklist before you try to launch a job with HPC launch.
 
 * Am I on a supported cluster for the job type I want to launch?
 * Have I reviewed and installed necessary dependencies for the job type I want to launch?
-* Have I registered all required environment variables? `dc-agent/hpc/dotenv` contains 'starter packs' but you may need to customize or extend this with your own API keys, wandb accounts, et cetera
-* Have I been added to all of the DC-Agent accounts I will need access to? For training you will need Huggingface, WandB, Supabase, and Github.
+* Have I registered all required environment variables? `OpenThoughts-Agent/hpc/dotenv` contains 'starter packs' but you may need to customize or extend this with your own API keys, wandb accounts, et cetera
+* Have I been added to all of the OT-Agent accounts I will need access to? For training you will need Huggingface, WandB, Supabase, and Github.
 * Have I checked the exact command line arguments in HPC launch for the job type I want? Not all available flags are documented here.
 
 ### Supported Cluster List
@@ -51,8 +51,8 @@ Clusters without outbound internet access (`❌`) are typically restricted to tr
 This guide focuses on `python -m hpc.launch`, the entry point used to submit both data-generation and training workloads. The launcher coordinates sbatch templates, shared environment variables, and per-job configuration so a single command can schedule a job from a login node.
 
 ## Prerequisites
-- **Submodules:** initialise `dcft/train/llamafactory` before launching SFT jobs  
-  `git submodule update --init --remote dcft/train/llamafactory`
+- **Submodules:** initialise `sft/llamafactory` before launching SFT jobs  
+  `git submodule update --init --remote sft/llamafactory`
 - **Python environment:** create a Conda/virtualenv suited to your cluster, then install launcher requirements  
   `uv pip install -r hpc_requirements.txt`
 - **LLM backends:** install vLLM or other serving stacks required by your datagen jobs. Follow your cluster’s guidance for CUDA/toolkit versions.
@@ -62,9 +62,9 @@ This guide focuses on `python -m hpc.launch`, the entry point used to submit bot
 
 To start a session:
 ```bash
-source /path/to/dc-agent/hpc/dotenv/tacc.env
+source /path/to/OpenThoughts-Agent/hpc/dotenv/tacc.env
 cd "$DCFT"
-$DCFT_ACTIVATE_ENV
+eval "$DCFT_ACTIVATE_ENV"
 ```
 
 ## Launcher Overview
@@ -75,7 +75,7 @@ python -m hpc.launch [core flags] [job-type flags] [--dry_run]
 Use `--dry_run` to inspect generated sbatch scripts without submitting a job.
 
 ### Common flags
-- `--job_type {datagen,train}`: choose between dataset generation and SFT runs.
+- `--job_type {sft,sft_mca,pretokenize,datagen,consolidate}`: choose the launcher mode.
 - `--experiments_dir`: directory where sbatch files, logs, and generated configs are written.
 - `--time_limit`: wall-clock limit passed to sbatch (e.g. `24:00:00`).
 - `--num_nodes`: requested node count for training jobs.
@@ -111,11 +111,11 @@ python -m hpc.launch \
 Adjust `--datagen_extra_args` to pass dataset-specific switches such as sampling bounds or input paths.
 
 ## SFT Jobs
-Training runs rely on llama-factory configs stored under `dcft/train/hp_settings`. Supply the path to a YAML alongside optional overrides:
+Training runs rely on llama-factory configs stored under `sft/hp_settings`. Supply the path to a YAML alongside optional overrides:
 ```bash
 python -m hpc.launch \
-  --job_type train \
-  --train_config_path dcft/train/hp_settings/paper/reasoning_medium.yaml \
+  --job_type sft \
+  --train_config_path sft/hp_settings/paper/reasoning_medium.yaml \
   --dataset my-org/my-training-set \
   --num_nodes 8 \
   --time_limit 24:00:00 \

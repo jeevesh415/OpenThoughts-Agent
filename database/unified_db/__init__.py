@@ -1,5 +1,5 @@
 """
-DC-Agents Dataset and Model Registration Package
+OT-Agents Dataset and Model Registration Package
 
 A comprehensive registration system for managing datasets and models
 with support for HuggingFace and local files.
@@ -79,7 +79,7 @@ from .models import (
 
 # Package metadata
 __version__ = "1.0.0"
-__author__ = "DC-Agents Team"
+__author__ = "OT-Agents Team"
 
 # Export main functions
 __all__ = [

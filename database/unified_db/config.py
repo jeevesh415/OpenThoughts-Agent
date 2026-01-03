@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Unified Configuration for DC-Agents
+Unified Configuration for OT-Agents
 
 This module provides Supabase client configuration and connection management
 that combines both the original Supabase configuration and terminal-bench configuration.

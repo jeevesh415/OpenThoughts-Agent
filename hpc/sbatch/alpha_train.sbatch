@@ -22,9 +22,7 @@ if [ -n "${DCFT:-}" ] && [ -f "$DCFT/hpc/dotenv/alpha.env" ]; then
   source "$DCFT/hpc/dotenv/alpha.env"
 fi
 
-module load release/24.04 GCCcore/12.3.0
-module load CUDA/12.1.1
-module load NCCL/2.18.3-CUDA-12.1.1
+module load CUDA/12.8.0
 
 if [ -n "${DCFT_ACTIVATE_ENV:-}" ]; then
   set +u
@@ -94,7 +92,7 @@ CMD="torchrun \
     --rdzv_id=$SLURM_JOB_ID \
     --rdzv_backend=c10d \
     --rdzv_endpoint=$MASTER_ADDR:$MASTER_PORT \
-    dcft/train/llamafactory/src/train.py $CONFIG"
+    sft/llamafactory/src/train.py $CONFIG"
 
 SRUN_ARGS="
     --nodes=$NUM_NODES \

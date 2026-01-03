@@ -40,8 +40,8 @@ def generate_sbatch(module_name, job_name):
 
 source /scratch/08002/gsmyrnis/miniconda3/etc/profile.d/conda.sh
 conda activate /work/10000/eguha3/vista/miniconda3/envs/dataagent
-source /scratch/10000/eguha3/old-dc-agent/secret.env
-cd /scratch/10000/eguha3/dc-agent
+source /scratch/10000/eguha3/old-ot-agent/secret.env
+cd /scratch/10000/eguha3/ot-agent
 python -m {module_name}
 """
     return sbatch_content
@@ -60,14 +60,14 @@ def main():
     print(f"Job name: {job_name}")
 
     # Ensure logs directory exists
-    logs_dir = Path("/scratch/10000/eguha3/dc-agent/logs")
+    logs_dir = Path("/scratch/10000/eguha3/ot-agent/logs")
     logs_dir.mkdir(parents=True, exist_ok=True)
 
     # Generate sbatch content
     sbatch_content = generate_sbatch(module_name, job_name)
 
     # Write to temporary sbatch file
-    sbatch_path = Path(f"/scratch/10000/eguha3/dc-agent/data/data_gen_{job_name}.sbatch")
+    sbatch_path = Path(f"/scratch/10000/eguha3/ot-agent/data/data_gen_{job_name}.sbatch")
     with open(sbatch_path, 'w') as f:
         f.write(sbatch_content)
 

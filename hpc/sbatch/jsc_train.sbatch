@@ -155,7 +155,7 @@ LAUNCHER="python -u -m accelerate.commands.launch \
     --machine_rank \$SLURM_PROCID \
     --role \$(hostname -s): --tee 3 \
     "
-CMD="$LAUNCHER dcft/train/llamafactory/src/train.py $CONFIG"
+CMD="$LAUNCHER sft/llamafactory/src/train.py $CONFIG"
 SRUN_ARGS="
     --nodes=$NUM_NODES \
     --gres=gpu:$NUM_GPUS_PER_NODE \

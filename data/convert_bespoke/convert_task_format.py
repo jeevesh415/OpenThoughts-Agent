@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Convert task format from dc-agent-tasks to target format.
+Convert task format from ot-agent-tasks to target format.
 
-Source format (dc-agent-tasks):
+Source format (ot-agent-tasks):
 - task.yaml (contains instruction, metadata, timeouts)
 - Dockerfile
 - docker-compose.yaml
@@ -231,7 +231,7 @@ def convert_task(source_task_dir, target_base_dir):
 
 
 def main():
-    source_base = Path('/Users/etashguha/Downloads/dc-agent-tasks')
+    source_base = Path('/Users/etashguha/Downloads/ot-agent-tasks')
     target_base = Path('/Users/etashguha/Documents/cache/converted_tasks')
 
     # Create target base directory

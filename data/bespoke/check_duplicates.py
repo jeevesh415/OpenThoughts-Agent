@@ -92,8 +92,8 @@ def check_duplicates_within_folder(directory: Path, dir_name: str):
 def find_duplicates():
     """Find duplicate tasks between and within successful_runs and successful_runs_again."""
     
-    dir1 = Path("/Users/etash/Documents/dc-agent/successful_runs")
-    dir2 = Path("/Users/etash/Documents/dc-agent/successful_runs_again")
+    dir1 = Path("/Users/etash/Documents/ot-agent/successful_runs")
+    dir2 = Path("/Users/etash/Documents/ot-agent/successful_runs_again")
     
     # Check duplicates within each folder first
     stats1 = check_duplicates_within_folder(dir1, "successful_runs")

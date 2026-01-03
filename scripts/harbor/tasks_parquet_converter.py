@@ -336,6 +336,7 @@ def from_hf_dataset(
 
         print(f"Dataset extraction complete: {extraction_dir}")
         return extraction_dir
+
     finally:
         # Clean up temporary parquet directory
         shutil.rmtree(temp_parquet_dir, ignore_errors=True)

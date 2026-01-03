@@ -216,7 +216,8 @@ __marimo__/
 .streamlit/secrets.toml
 
 # Logs
-experiments/logs/
+experiments/
+rl/experiments/sbatch_scripts/
 *.out
 daytona_parallel_results_*.json
 
@@ -253,7 +254,7 @@ secret.env
 install.sh
 run_all.sh
 run_all.txt
-launch.py
+/launch.py
 
 # hpc dotenv secrets
 train/hpc/dotenv/secret.env
@@ -280,7 +281,7 @@ secret.env
 install.sh
 run_all.sh
 run_all.txt
-launch.py
+/launch.py
 # hpc dotenv secrets
 train/hpc/dotenv/secret.env
 
@@ -306,7 +307,7 @@ secret.env
 install.sh
 run_all.sh
 run_all.txt
-launch.py
+/launch.py
 # hpc dotenv secrets
 train/hpc/dotenv/secret.env
 
@@ -332,7 +333,7 @@ secret.env
 install.sh
 run_all.sh
 run_all.txt
-launch.py
+/launch.py
 # hpc dotenv secrets
 train/hpc/dotenv/secret.env
 
@@ -358,7 +359,7 @@ secret.env
 install.sh
 run_all.sh
 run_all.txt
-launch.py
+/launch.py
 # hpc dotenv secrets
 train/hpc/dotenv/secret.env
 
@@ -384,7 +385,7 @@ secret.env
 install.sh
 run_all.sh
 run_all.txt
-launch.py
+/launch.py
 # hpc dotenv secrets
 train/hpc/dotenv/secret.env
 

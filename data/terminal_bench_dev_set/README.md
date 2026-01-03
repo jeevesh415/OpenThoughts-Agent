@@ -99,8 +99,8 @@ task_id/
 instruction: "Task description..."
 max_agent_timeout_sec: 900.0
 max_test_timeout_sec: 300.0
-author_name: "dc-agent"
-author_email: "dc-agent@terminal-bench.ai"
+author_name: "ot-agent"
+author_email: "ot-agent@terminal-bench.ai"
 difficulty: "medium"  # easy, medium, hard
 category: "software_engineering"
 tags: ["tag1", "tag2"]

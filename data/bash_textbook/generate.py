@@ -413,8 +413,8 @@ def main() -> None:
     final_dataset_dir = generate_tasks_from_questions(questions_response, "bash_textbook")
     upsampled_dataset_dir = upsample_tasks_directory(final_dataset_dir, 10_000)
     upload_tasks_to_hf(upsampled_dataset_dir, "DCAgent/bash_textbook_tasks")
-    # hf_dataset = run_dataset_to_traces(upsampled_dataset_dir, model_name="gpt-5-nano-2025-08-07", agent_name="terminus-2", n_concurrent=256, agent_kwargs={"max_episodes": 8})
-    # upload_traces_to_hf(hf_dataset, "DCAgent/bash_textbook_tasks_traces", "SFT")
+    hf_dataset = run_dataset_to_traces(upsampled_dataset_dir, model_name="gpt-5-nano-2025-08-07", agent_name="terminus-2", n_concurrent=256, agent_kwargs={"max_episodes": 8})
+    upload_traces_to_hf(hf_dataset, "DCAgent/bash_textbook_tasks_traces", "SFT")
 
 if __name__ == "__main__":
     main()

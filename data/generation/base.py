@@ -32,11 +32,15 @@ from .utils import (
 )
 from scripts.harbor.job_config_utils import (
     load_job_config,
+    normalize_trajectory_kwargs,
+    overwrite_agent_fields,
     set_job_metadata,
     set_local_dataset,
-    overwrite_agent_fields,
     update_agent_kwargs,
 )
+
+
+MODEL_INFO_DEFAULT_COST_PER_TOKEN = 1e-6
 
 
 class BaseDataGenerator(ABC):
@@ -107,14 +111,29 @@ class BaseDataGenerator(ABC):
         if getattr(args, "trace_agent_kwargs", None) is None and extra_agent_kwargs:
             setattr(args, "trace_agent_kwargs", extra_agent_kwargs)
 
+        endpoint_override = getattr(args, "endpoint_json", None) or os.environ.get("TRACE_ENDPOINT_JSON")
+        if runtime:
+            existing_endpoint = runtime.engine_kwargs.get("endpoint_json")
+            if endpoint_override:
+                runtime.engine_kwargs["endpoint_json"] = endpoint_override
+                setattr(args, "endpoint_json", endpoint_override)
+            elif existing_endpoint:
+                setattr(args, "endpoint_json", existing_endpoint)
+
         return args
 
     def build_request(self, args: argparse.Namespace) -> GenerationRequest:
         metadata = self._build_request_metadata(args)
+        endpoint_json = getattr(args, "endpoint_json", None) or os.environ.get("TRACE_ENDPOINT_JSON")
+        runtime: Optional[RuntimeEngineSettings] = getattr(args, "_engine_runtime", None)
+        if not endpoint_json and runtime:
+            endpoint_json = runtime.engine_kwargs.get("endpoint_json")
+        if endpoint_json:
+            metadata.setdefault("trace_endpoint_json", endpoint_json)
+
         limit_value = getattr(args, "limit", None)
         if limit_value is not None:
             metadata.setdefault("limit", limit_value)
-        runtime: Optional[RuntimeEngineSettings] = getattr(args, "_engine_runtime", None)
         engine_value = runtime.type if runtime else None
         if engine_value and engine_value.lower() == "none":
             engine_value = None
@@ -195,6 +214,130 @@ class BaseDataGenerator(ABC):
         """Hook for subclasses to include additional metadata in the request."""
 
         return {}
+
+    def _normalize_agent_kwargs_dict(
+        self,
+        source: Optional[dict[str, Any]],
+        *,
+        context: str,
+    ) -> dict[str, Any]:
+        """Normalise agent kwargs to the Harbor ``trajectory_config`` schema."""
+
+        if source is None:
+            return {}
+
+        try:
+            return normalize_trajectory_kwargs(source)
+        except ValueError as exc:
+            raise InputValidationError(f"{context}: {exc}", cause=exc) from exc
+
+    def _inject_model_info_defaults(
+        self,
+        agent_kwargs: dict[str, Any],
+        args: argparse.Namespace,
+    ) -> dict[str, Any]:
+        """Ensure LiteLLM receives explicit model metadata from datagen configs."""
+
+        defaults = self._derive_model_info_defaults(args)
+        if not defaults:
+            return agent_kwargs
+
+        merged = dict(agent_kwargs)
+        model_info = dict(merged.get("model_info") or {})
+        changed = False
+        for key, value in defaults.items():
+            if value is None or key in model_info:
+                continue
+            model_info[key] = value
+            changed = True
+        if changed:
+            merged["model_info"] = model_info
+        return merged
+
+    def _derive_model_info_defaults(self, args: argparse.Namespace) -> dict[str, Any]:
+        """Derive context window + token pricing hints for LiteLLM."""
+
+        defaults: dict[str, Any] = {}
+        context_window = self._derive_context_window(args)
+        if context_window:
+            defaults["max_input_tokens"] = context_window
+
+        max_output = self._derive_max_output_tokens(args)
+        if max_output:
+            defaults["max_output_tokens"] = max_output
+
+        token_costs = self._derive_token_costs(args)
+        defaults.update(token_costs)
+        return {k: v for k, v in defaults.items() if v is not None}
+
+    def _derive_context_window(self, args: argparse.Namespace) -> Optional[int]:
+        """Best-effort context window from datagen YAML (max_model_len, etc.)."""
+
+        datagen_config = getattr(args, "_datagen_config", None)
+        candidates: list[int] = []
+
+        if datagen_config is not None:
+            vllm_cfg = getattr(datagen_config, "vllm_server", None)
+            if vllm_cfg and getattr(vllm_cfg, "max_model_len", None):
+                value = self._safe_int(getattr(vllm_cfg, "max_model_len"))
+                if value:
+                    candidates.append(value)
+
+            engine_cfg = getattr(datagen_config, "engine", None)
+            if engine_cfg:
+                for key in ("max_model_len", "max_input_tokens", "context_window"):
+                    value = self._safe_int(getattr(engine_cfg, key, None))
+                    if value:
+                        candidates.append(value)
+                if isinstance(engine_cfg.request_params, dict):
+                    for key in ("max_input_tokens", "context_window", "max_context_tokens"):
+                        value = self._safe_int(engine_cfg.request_params.get(key))
+                        if value:
+                            candidates.append(value)
+
+        runtime = getattr(args, "_engine_runtime", None)
+        if runtime and isinstance(runtime.request_params, dict):
+            for key in ("max_input_tokens", "context_window", "max_context_tokens"):
+                value = self._safe_int(runtime.request_params.get(key))
+                if value:
+                    candidates.append(value)
+
+        if runtime and runtime.max_output_tokens:
+            # Some configs only specify max output; assume 4x as context window fallback.
+            candidates.append(int(runtime.max_output_tokens) * 4)
+
+        return max(candidates) if candidates else None
+
+    def _derive_max_output_tokens(self, args: argparse.Namespace) -> Optional[int]:
+        runtime = getattr(args, "_engine_runtime", None)
+        if runtime and runtime.max_output_tokens:
+            return self._safe_int(runtime.max_output_tokens)
+
+        datagen_config = getattr(args, "_datagen_config", None)
+        if datagen_config and getattr(datagen_config, "engine", None):
+            value = self._safe_int(getattr(datagen_config.engine, "max_output_tokens", None))
+            if value:
+                return value
+        return None
+
+    def _derive_token_costs(self, args: argparse.Namespace) -> dict[str, float]:
+        """Return a non-zero invented cost so LiteLLM trusts the metadata."""
+
+        cost = MODEL_INFO_DEFAULT_COST_PER_TOKEN
+        return {
+            "input_cost_per_token": cost,
+            "output_cost_per_token": cost,
+        }
+
+    @staticmethod
+    def _safe_int(value: Any) -> Optional[int]:
+        if value in (None, "", False):
+            return None
+        try:
+            intval = int(value)
+        except (TypeError, ValueError):
+            return None
+        return intval if intval > 0 else None
 
     def _initialise_engine(
         self,
@@ -527,6 +670,12 @@ class BaseDataGenerator(ABC):
         metadata = request.metadata or {}
         engine = context.engine
         disable_verification = bool(getattr(args, "disable_verification", False))
+        trace_backend_raw = metadata.get("trace_backend") or getattr(args, "trace_backend", None)
+        trace_backend = (
+            str(trace_backend_raw).strip().lower()
+            if trace_backend_raw not in (None, "")
+            else None
+        )
 
         tasks_input = request.tasks_input or getattr(args, "tasks_input", None)
         if not tasks_input:
@@ -570,11 +719,14 @@ class BaseDataGenerator(ABC):
         trace_model: Optional[str] = None
         served_model: Optional[str] = None
         api_base: Optional[str] = None
+        is_openai_like_engine = isinstance(
+            engine, (GenericOpenAIEngine, GeminiOpenAIEngine)
+        )
         requires_endpoint = isinstance(engine, GenericOpenAIEngine) and not isinstance(
             engine, GeminiOpenAIEngine
         )
 
-        if isinstance(engine, GenericOpenAIEngine):
+        if is_openai_like_engine:
             print(
                 "[traces] engine",
                 {
@@ -649,7 +801,7 @@ class BaseDataGenerator(ABC):
             )
             if trace_model and str(trace_model).strip().lower() == TRACE_MODEL_PLACEHOLDER:
                 trace_model = ""
-            if not trace_model and isinstance(engine, GenericOpenAIEngine):
+            if not trace_model and isinstance(engine, (GenericOpenAIEngine, GeminiOpenAIEngine)):
                 trace_model = getattr(engine, "model_name", None)
 
             if isinstance(engine, GenericOpenAIEngine):
@@ -661,6 +813,9 @@ class BaseDataGenerator(ABC):
                     if not cleaned.endswith("/v1"):
                         cleaned = f"{cleaned}/v1"
                     api_base = cleaned
+            elif isinstance(engine, GeminiOpenAIEngine):
+                if served_model is None:
+                    served_model = getattr(engine, "model_name", None)
 
         if (
             not trace_model
@@ -710,7 +865,7 @@ class BaseDataGenerator(ABC):
                     "trace_model_dispatch": trace_model_for_dispatch,
                 },
             )
-        elif isinstance(engine, GenericOpenAIEngine):
+        elif is_openai_like_engine:
             provider_prefix = "openai"
             if isinstance(engine, GeminiOpenAIEngine):
                 provider_prefix = "gemini"
@@ -769,7 +924,10 @@ class BaseDataGenerator(ABC):
         if raw_agent_kwargs is None:
             raw_agent_kwargs = getattr(args, "trace_agent_kwargs", None)
 
-        datagen_agent_defaults = dict(getattr(args, "_datagen_extra_agent_kwargs", {}) or {})
+        datagen_agent_defaults = self._normalize_agent_kwargs_dict(
+            dict(getattr(args, "_datagen_extra_agent_kwargs", {}) or {}),
+            context="datagen agent defaults",
+        )
         parsed_agent_kwargs: dict[str, Any] = {}
         if raw_agent_kwargs not in (None, "", {}):
             if isinstance(raw_agent_kwargs, str):
@@ -789,6 +947,12 @@ class BaseDataGenerator(ABC):
         if parsed_agent_kwargs:
             agent_kwargs.update(parsed_agent_kwargs)
 
+        agent_kwargs = self._normalize_agent_kwargs_dict(
+            agent_kwargs,
+            context="trace agent kwargs",
+        )
+        agent_kwargs = self._inject_model_info_defaults(agent_kwargs, args)
+
         def _derive_metrics_endpoint_from_api_base(base: str) -> str:
             cleaned = base.rstrip("/")
             if cleaned.endswith("/v1"):
@@ -796,19 +960,18 @@ class BaseDataGenerator(ABC):
             return f"{cleaned}/metrics"
 
         agent_kwargs = dict(agent_kwargs)
+        if requires_endpoint:
+            # Endpoint JSON is authoritative for local vLLM jobs; discard stale overrides.
+            for key in ("api_base", "metrics_endpoint"):
+                agent_kwargs.pop(key, None)
+
         derived_metrics_endpoint: Optional[str] = None
         if api_base:
             agent_kwargs["api_base"] = api_base
             derived_metrics_endpoint = _derive_metrics_endpoint_from_api_base(api_base)
 
-        metrics_endpoint = agent_kwargs.get("metrics_endpoint")
         if derived_metrics_endpoint:
-            if (
-                not metrics_endpoint
-                or "replace-with" in str(metrics_endpoint)
-                or str(metrics_endpoint).rstrip("/") != derived_metrics_endpoint.rstrip("/")
-            ):
-                agent_kwargs["metrics_endpoint"] = derived_metrics_endpoint
+            agent_kwargs["metrics_endpoint"] = derived_metrics_endpoint
 
         print(
             "[traces] dispatch",
@@ -832,12 +995,6 @@ class BaseDataGenerator(ABC):
             trace_export_filter = None
 
         trace_dataset_type = metadata.get("trace_dataset_type") or getattr(args, "trace_dataset_type", None) or "SFT"
-        include_reasoning = metadata.get("trace_include_reasoning")
-        if include_reasoning is None:
-            include_reasoning = getattr(args, "trace_include_reasoning", True)
-        include_reasoning = bool(include_reasoning)
-        metadata["trace_include_reasoning"] = include_reasoning
-
         try:
             agent_enum = AgentName(trace_agent_name)
         except ValueError:
@@ -906,6 +1063,52 @@ class BaseDataGenerator(ABC):
             job_config_for_run.environment.override_storage_mb = int(sandbox_disk) * 1024
 
         job_dir = trace_jobs_dir / job_config_for_run.job_name
+        if requires_endpoint:
+            existing_config_path = job_dir / "config.json"
+            existing_values: dict[str, str | None] = {}
+            if existing_config_path.exists():
+                try:
+                    existing_payload = json.loads(existing_config_path.read_text())
+                    existing_agent = ((existing_payload.get("agents") or [{}])[0]) or {}
+                    existing_kwargs = existing_agent.get("kwargs") or {}
+                    existing_values = {
+                        "api_base": (existing_kwargs.get("api_base") or "").strip() or None,
+                        "metrics_endpoint": (existing_kwargs.get("metrics_endpoint") or "").strip() or None,
+                    }
+                except Exception as exc:  # pragma: no cover - defensive
+                    self.logger.warning(
+                        "[traces] Failed to inspect existing Harbor config at %s (%s)",
+                        existing_config_path,
+                        exc,
+                    )
+            desired_api_base = (agent_kwargs.get("api_base") or "").strip() or None
+            desired_metrics = (agent_kwargs.get("metrics_endpoint") or "").strip() or None
+            if existing_values and desired_api_base:
+                old_api = existing_values.get("api_base")
+                old_metrics = existing_values.get("metrics_endpoint")
+                mismatch_api = bool(
+                    old_api
+                    and old_api.rstrip("/") != desired_api_base.rstrip("/")
+                )
+                mismatch_metrics = bool(
+                    old_metrics
+                    and desired_metrics
+                    and old_metrics.rstrip("/") != desired_metrics.rstrip("/")
+                )
+                if mismatch_api or mismatch_metrics:
+                    message = (
+                        "Existing trace job config at "
+                        f"{existing_config_path} still references Pinggy URL "
+                        f"{old_api or '<unset>'} (metrics {old_metrics or '<unset>'}) "
+                        f"but the current vLLM endpoint is {desired_api_base} "
+                        f"(metrics {desired_metrics or '<unset>'}). Delete the stale "
+                        "trace_jobs directory or pick a fresh --experiments_dir/--job_name "
+                        "to avoid reusing mismatched Harbor configs."
+                    )
+                    if trace_backend == "vllm":
+                        raise InputValidationError(message)
+                    self.logger.warning("[traces] %s", message)
+
         base_artifacts = {
             "trace_jobs_dir": str(trace_jobs_dir),
             "trace_job_name": job_config_for_run.job_name,
@@ -926,7 +1129,6 @@ class BaseDataGenerator(ABC):
                 agent_timeout_sec=getattr(args, "trace_agent_timeout_sec", None),
                 verifier_timeout_sec=getattr(args, "trace_verifier_timeout_sec", None),
                 disable_verification=disable_verification,
-                include_reasoning=include_reasoning,
             )
         except NotImplementedError as exc:
             if trace_eval_only:

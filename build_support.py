@@ -18,11 +18,11 @@ def resolve_llamafactory_requirement() -> str:
     Build a direct-reference requirement pointing at the local LLaMA Factory checkout.
 
     The directory is expected to be provided via the git submodule
-    `dcft/train/llamafactory`. We intentionally do not fail if the directory is
+    `sft/llamafactory`. We intentionally do not fail if the directory is
     missing so that base installs (without `[sft]`) still succeed; attempting to
     install the `sft` extra will fail later if the path is absent.
     """
 
     repo_root = Path(__file__).resolve().parent
-    llama_dir = (repo_root / "dcft" / "train" / "llamafactory").resolve()
+    llama_dir = (repo_root / "sft" / "llamafactory").resolve()
     return f"llamafactory @ {llama_dir.as_uri()}"

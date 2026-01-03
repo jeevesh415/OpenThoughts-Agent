@@ -123,7 +123,7 @@ def create_successful_runs_folders(passing_tasks, output_dir):
             print(f"    Warning: config.json not found in {source_folder}")
 
 if __name__ == "__main__":
-    job_directory = "/Users/etash/Documents/dc-agent/jobs/bespoke_from_sandboxes_v6"
+    job_directory = "/Users/etash/Documents/ot-agent/jobs/bespoke_from_sandboxes_v6"
 
     print("Finding tasks solved at least once...")
     passing = find_passing_tasks(job_directory)
@@ -138,5 +138,5 @@ if __name__ == "__main__":
             print(f"  {task_info['task_name']}")
             
         print(f"\nCreating successful_runs folders...")
-        create_successful_runs_folders(passing, "/Users/etash/Documents/dc-agent/successful_runs_again")
-        print(f"\nSuccessful runs folders created in: /Users/etash/Documents/dc-agent/successful_runs_again")
+        create_successful_runs_folders(passing, "/Users/etash/Documents/ot-agent/successful_runs_again")
+        print(f"\nSuccessful runs folders created in: /Users/etash/Documents/ot-agent/successful_runs_again")

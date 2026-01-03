@@ -256,7 +256,7 @@ fi
 
 
 def main():
-    source_dir = Path("/Users/etash/Downloads/dc-agent-tasks")
+    source_dir = Path("/Users/etash/Downloads/ot-agent-tasks")
     target_dir = Path("/Users/etash/Downloads/sandboxes_tasks_terminal_bench")
     
     print(f"Converting Terminal-Bench tasks")

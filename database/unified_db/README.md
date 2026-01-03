@@ -1,4 +1,4 @@
-# DC-Agents Dataset and Model Registry
+# OT-Agents Dataset and Model Registry
 
 A comprehensive registration system for managing datasets, ML models, and sandbox evaluation results with support for HuggingFace and local files.
 

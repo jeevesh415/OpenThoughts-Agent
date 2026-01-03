@@ -67,7 +67,7 @@ def test_answer_file_contents():
     return task_dir
 
 def convert_gsm8k_to_sandboxes(test_dataset):
-    output_dir = Path("/scratch/08134/negin/dc-agent-shared/data/gsm8k_test/tasks")
+    output_dir = Path("/scratch/08134/negin/ot-agent-shared/data/gsm8k_test/tasks")
     output_dir.mkdir(parents=True, exist_ok=True)
     
     print(f"Generating tasks in: {output_dir}")

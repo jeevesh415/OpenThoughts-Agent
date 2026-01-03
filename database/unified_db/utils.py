@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Dataset Registration Utilities for DC-Agents
+Dataset Registration Utilities for OT-Agents
 
 This module provides utility functions for dataset registration using Supabase
 with support for both HuggingFace and local parquet file datasets.

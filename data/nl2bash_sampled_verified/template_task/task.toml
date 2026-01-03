@@ -2,7 +2,7 @@ version = "1.0"
 
 [metadata]
 author_name = "nl2bash-teacher"
-author_email = "research@dc-agent.invalid"
+author_email = "research@ot-agent.invalid"
 difficulty = "medium"
 category = "terminal-automation"
 tags = ["nl2bash", "synthetic"]

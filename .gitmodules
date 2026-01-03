@@ -1,5 +1,3 @@
-[submodule "dcft/train/llamafactory"]
-	path = dcft/train/llamafactory
-	url = https://github.com/mlfoundations/LLaMA-Factory
-	branch = main
-	update = rebase
+[submodule "sft/llamafactory"]
+	path = sft/llamafactory
+	url = https://github.com/mlfoundations/llama-factory

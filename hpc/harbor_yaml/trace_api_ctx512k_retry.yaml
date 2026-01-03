@@ -37,7 +37,7 @@ orchestrator:
 
 environment:
   type: daytona
-  force_build: true
+  force_build: false
   delete: true
   override_cpus: 1
   override_memory_mb: 2048
@@ -67,7 +67,7 @@ agents:
         max_input_tokens: 512000
         max_output_tokens: 16000
 
-      trajectory_configs:
+      trajectory_config:
         raw_content: true
         linear_history: true
 datasets:

@@ -6,10 +6,10 @@
 module load release/25.06  GCCcore/14.2.0
 module load Python/3.10.8
 
-python -m venv ~/venvs/dc-agent-venv
-source ~/venvs/dc-agent-venv/bin/activate
+python -m venv ~/venvs/ot-agent-venv
+source ~/venvs/ot-agent-venv/bin/activate
 pip install openai pydantic datasets supabase dotenv google-cloud-storage daytona-sdk daytona harbor h5py
-export $(grep -v '^#' ~/dc-agent/data/dclm-mine/.env | xargs)
+export $(grep -v '^#' ~/ot-agent/data/dclm-mine/.env | xargs)
 export PYTHONPATH=./
 
 ## Step 1: Filter dclm baseline

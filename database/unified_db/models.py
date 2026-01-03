@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Models for DC-Agents Dataset and Model Registration
+Models for OT-Agents Dataset and Model Registration
 
 This module provides DatasetModel and ModelModel for data validation and serialization
 supporting both HuggingFace and local file registration.

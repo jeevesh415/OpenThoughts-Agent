@@ -1,1 +1,1 @@
-"""DC-Agent helpers that integrate with the Harbor package."""
+"""OT-Agent helpers that integrate with the Harbor package."""

@@ -23,7 +23,7 @@ The verifier runs the tests and writes the reward to `/logs/verifier/reward.txt`
 ### Generate Dataset
 
 ```bash
-cd /scratch/10000/eguha3/dc-agent/data/r2egym
+cd /scratch/10000/eguha3/ot-agent/data/r2egym
 python3 generate.py
 ```
 

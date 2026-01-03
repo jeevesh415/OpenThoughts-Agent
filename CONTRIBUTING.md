@@ -1,10 +1,10 @@
 # Contributing
 
-DC-Agent is a highly collaborative project and we welcome many contributors. Below we have detailed the steps to contribute new code and outlined a few guidelines (marked as **Important**) that will make it easier to all work together. 
+OT-Agent is a highly collaborative project and we welcome many contributors. Below we have detailed the steps to contribute new code and outlined a few guidelines (marked as **Important**) that will make it easier to all work together. 
 
 ## Clone the repo
 ```
-git clone git@github.com:mlfoundations/dc-agent.git
+git clone git@github.com:mlfoundations/OpenThoughts-Agent.git
 ```
 
 ## Create a new branch
@@ -24,7 +24,7 @@ git switch -c ryan/contributing-docs
 gh pr create \
   --draft \
   --title "Add contributing.md" \
-  --body "Outline the conventions used for contributing code to dc-agent" 
+  --body "Outline the conventions used for contributing code to OpenThoughts-Agent" 
 ```
 
 > [!IMPORTANT]

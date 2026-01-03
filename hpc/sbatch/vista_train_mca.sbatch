@@ -17,20 +17,19 @@ module load gcc/14.2.0
 module load cuda/12.8
 
 source $SCRATCH/miniconda3/etc/profile.d/conda.sh
-conda activate $SCRATCH/miniconda3/envs/dcagent
+conda activate $SCRATCH/miniconda3/envs/otagent
 
 source $DCFT/hpc/dotenv/tacc.env
 
 SECRET_FILE="${DC_AGENT_SECRET_ENV:-${KEYS:-}}"
 if [[ -n "${SECRET_FILE}" ]]; then
     if [[ -f "${SECRET_FILE}" ]]; then
-        echo "Sourcing secrets from ${SECRET_FILE}"
         set -a
         # shellcheck disable=SC1090
         source "${SECRET_FILE}"
         set +a
     else
-        echo "Warning: secrets file ${SECRET_FILE} not found; database registration may fail." >&2
+        echo "Warning: secrets file not found; database registration may fail." >&2
     fi
 else
     echo "Warning: DC_AGENT_SECRET_ENV is not set; database registration may fail." >&2
@@ -48,7 +47,7 @@ done
 export HF_HOME="/tmp/hf_home"
 #srun rsync -az $SCRATCH/hf_home /tmp
 
-# export HF_TOKEN=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
+# export HF_TOKEN=YOUR_HF_TOKEN_HERE
 
 export NCCL_PROTO=simple
 export NCCL_DEBUG=INFO
@@ -85,7 +84,7 @@ echo -e "CONFIG: $CONFIG\nOUTPUT_DIR: $OUTPUT_DIR"
 export CONFIG OUTPUT_DIR
 
 SINGULARITY_IMAGE="${SCRATCH}/cuda-img/cuda-cudnn-12.8-ubuntu22.sif"
-SINGULARITY_BIND="${SCRATCH}/dc-agent:${SCRATCH}/dc-agent"
+SINGULARITY_BIND="${SCRATCH}/OpenThoughts-Agent:${SCRATCH}/OpenThoughts-Agent"
 
 if [[ ! -f "$SINGULARITY_IMAGE" ]]; then
     echo "ERROR: Singularity image not found at $SINGULARITY_IMAGE" >&2
@@ -134,7 +133,7 @@ torchrun \
     --rdzv_id="$SLURM_JOB_ID" \
     --rdzv_backend=c10d \
     --rdzv_endpoint="$MASTER_ADDR:$MASTER_PORT" \
-    dcft/train/llamafactory/src/train.py "$CONFIG"
+    sft/llamafactory/src/train.py "$CONFIG"
 EOF
 
 srun singularity exec --nv --bind "$SINGULARITY_BIND" "$SINGULARITY_IMAGE" \

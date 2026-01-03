@@ -1,7 +1,7 @@
 #!/bin/bash
 # Perlmutter training template for HPC launch.
 #SBATCH --account={account}
-#SBATCH --qos=regular         # Other options: debug, shared
+#SBATCH --qos=premium         # Other options: debug, shared
 #SBATCH --constraint="gpu&hbm80g"
 #SBATCH --exclusive
 #SBATCH --nodes={num_nodes}
@@ -11,6 +11,8 @@
 #SBATCH --time={time_limit}
 #SBATCH --output={experiments_dir}/logs/%x_%j.out
 #SBATCH --job-name={job_name}
+#SBATCH --mail-type=END,TIME_LIMIT,FAIL
+#SBATCH --mail-user=bf996@nyu.edu
 
 set -euo pipefail
 
@@ -42,13 +44,26 @@ else
   fi
 fi
 
-module load cuda/12.9
 module load cudatoolkit/12.9
 
 if [ -n "${LIBRARY_PATH:-}" ]; then
   export LIBRARY_PATH="$CUDA_HOME/lib64:$LIBRARY_PATH"
 else
   export LIBRARY_PATH="$CUDA_HOME/lib64"
+fi
+
+if [ -n "${CUDA_HOME:-}" ]; then
+  _cuda_sdk_root="$(dirname "$(dirname "$CUDA_HOME")")"
+  _cuda_version="$(basename "$CUDA_HOME")"
+  _cuda_math_lib_path="$_cuda_sdk_root/math_libs/$_cuda_version/lib64"
+  if [ -d "$_cuda_math_lib_path" ]; then
+    if [ -n "${LD_LIBRARY_PATH:-}" ]; then
+      export LD_LIBRARY_PATH="$_cuda_math_lib_path:$LD_LIBRARY_PATH"
+    else
+      export LD_LIBRARY_PATH="$_cuda_math_lib_path"
+    fi
+  fi
+  unset _cuda_sdk_root _cuda_version _cuda_math_lib_path
 fi
 
 if [ -n "${CONDA_PREFIX:-}" ]; then
@@ -65,6 +80,9 @@ if [ -n "${CONDA_PREFIX:-}" ]; then
 else
   echo "Warning: CONDA_PREFIX is not set; compiler environment variables were not configured." >&2
 fi
+
+echo "CUDA_HOME=${CUDA_HOME:-<unset>}"
+echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH:-<unset>}"
 
 SECRET_FILE="${DC_AGENT_SECRET_ENV:-${KEYS:-}}"
 if [[ -n "${SECRET_FILE}" ]]; then
@@ -134,7 +152,7 @@ CMD="torchrun \
     --rdzv_id=$SLURM_JOB_ID \
     --rdzv_backend=c10d \
     --rdzv_endpoint=$MASTER_ADDR:$MASTER_PORT \
-    dcft/train/llamafactory/src/train.py $CONFIG"
+    sft/llamafactory/src/train.py $CONFIG"
 
 SRUN_ARGS="
     --nodes=$NUM_NODES \

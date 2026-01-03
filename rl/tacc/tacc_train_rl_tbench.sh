@@ -25,22 +25,22 @@ export TRITON_CACHE_DIR=/scratch/10000/eguha3/triton_cache_dir
 export FLASHINFER_WORKSPACE_BASE=/scratch/08002/gsmyrnis/flashinfer_cache
 export UV_CACHE_DIR=/scratch/10000/eguha3/uv_cache_dir
 export HYDRA_FULL_ERROR=1
-source /scratch/08134/negin/dc-agent-shared/dc-agent/secret.env
-ln -s /home1/apps/gcc/15.1.0/lib64/libstdc++.so.6 /scratch/08134/negin/dc-agent-shared/SkyRL/envs/tacc_rl_v4/lib/libstdc++.so.6
-export LD_LIBRARY_PATH=/home1/apps/gcc/15.1.0/lib64:/scratch/08134/negin/dc-agent-shared/SkyRL/envs/tacc_rl_v4/lib/python3.12/site-packages/torch/lib:$LD_LIBRARY_PATH
+source /scratch/08134/negin/ot-agent-shared/ot-agent/secret.env
+ln -s /home1/apps/gcc/15.1.0/lib64/libstdc++.so.6 /scratch/08134/negin/ot-agent-shared/SkyRL/envs/tacc_rl_v4/lib/libstdc++.so.6
+export LD_LIBRARY_PATH=/home1/apps/gcc/15.1.0/lib64:/scratch/08134/negin/ot-agent-shared/SkyRL/envs/tacc_rl_v4/lib/python3.12/site-packages/torch/lib:$LD_LIBRARY_PATH
 
 source /scratch/08002/gsmyrnis/miniconda3/etc/profile.d/conda.sh
-conda activate  /scratch/08134/negin/dc-agent-shared/SkyRL/envs/tacc_rl_v4
+conda activate  /scratch/08134/negin/ot-agent-shared/SkyRL/envs/tacc_rl_v4
 
 SKYRL_HOME=/scratch/10000/eguha3/SkyRL
 cd $SKYRL_HOME
-SKYRL_OUTPUT_DIR="/scratch/08134/negin/dc-agent-shared/SkyRL/skyrl-train"
+SKYRL_OUTPUT_DIR="/scratch/08134/negin/ot-agent-shared/SkyRL/skyrl-train"
 export DATA_DIR="${SKYRL_OUTPUT_DIR}/data_rl/gsm8k"
 CHECKPOINT_PATH="${SKYRL_OUTPUT_DIR}/checkpoints/gsm8k"
 mkdir -p $DATA_DIR
 mkdir -p $CHECKPOINT_PATH
 
-python /scratch/08134/negin/dc-agent-shared/SkyRL/skyrl-train/examples/gsm8k/gsm8k_dataset.py --output_dir $DATA_DIR
+python /scratch/08134/negin/ot-agent-shared/SkyRL/skyrl-train/examples/gsm8k/gsm8k_dataset.py --output_dir $DATA_DIR
 
 MODEL_PATH="Qwen/Qwen2.5-7B-Instruct"
 NUM_GPUS_PER_NODE=1
@@ -48,14 +48,14 @@ NUM_GPUS=$(($NUM_GPUS_PER_NODE * $SLURM_JOB_NUM_NODES))
 echo "Number of GPUs: $NUM_GPUS"
 LOGGER="console"
 echo "CUDA_HOME: $CUDA_HOME"
-bash /scratch/08134/negin/dc-agent-shared/dc-agent/eval/tacc/start_ray_server.sh
+bash /scratch/08134/negin/ot-agent-shared/ot-agent/eval/tacc/start_ray_server.sh
 
 sleep 30
 # Run training
 python -m skyrl_train.entrypoints.main_base \
   data.train_data=[mlfoundations-dev/sandboxes-tasks] \
   data.val_data=[mlfoundations-dev/sandboxes-tasks] \
-  +data.cache_dir=/scratch/08134/negin/dc-agent-shared/data_cache \
+  +data.cache_dir=/scratch/08134/negin/ot-agent-shared/data_cache \
   trainer.algorithm.advantage_estimator=grpo \
   trainer.policy.model.path=$MODEL_PATH \
   trainer.placement.colocate_all=true \
@@ -85,7 +85,7 @@ python -m skyrl_train.entrypoints.main_base \
   trainer.policy.optimizer_config.lr=1.0e-6 \
   trainer.algorithm.use_kl_loss=true \
   generator.backend=vllm \
-  +generator.trial_runs_dir=/scratch/08134/negin/dc-agent-shared/sandboxes/runs \
+  +generator.trial_runs_dir=/scratch/08134/negin/ot-agent-shared/sandboxes/runs \
   +generator.agent_name=terminus \
   generator.use_http_server_inference_engine_client=true \
   generator.http_server_inference_engine_client_host=127.0.0.1 \
@@ -95,12 +95,12 @@ python -m skyrl_train.entrypoints.main_base \
   generator.async_engine=true \
   generator.batched=true \
   generator.n_samples_per_prompt=4 \
-  +generator.sandboxes_dir=/scratch/08134/negin/dc-agent-shared/sandboxes \
+  +generator.sandboxes_dir=/scratch/08134/negin/ot-agent-shared/sandboxes \
   generator.gpu_memory_utilization=0.8 \
   trainer.logger=$LOGGER \
   trainer.project_name=gsm8k \
   trainer.run_name=gsm8k_test \
   trainer.resume_mode=null \
   trainer.ckpt_path=$CHECKPOINT_PATH \
-  trainer.export_path=/scratch/08134/negin/dc-agent-shared/sandboxes/exports
+  trainer.export_path=/scratch/08134/negin/ot-agent-shared/sandboxes/exports
       

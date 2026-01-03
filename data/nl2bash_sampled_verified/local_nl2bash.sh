@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-CONDA_ENV="dc-agent"
+CONDA_ENV="ot-agent"
 SECRETS_PATH="/Users/benjaminfeuer/Documents/secrets.env"
 
 if [[ -f "$SECRETS_PATH" ]]; then

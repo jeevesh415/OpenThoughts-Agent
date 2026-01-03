@@ -11,7 +11,7 @@ from harbor.mappers.terminal_bench import TerminalBenchMapper
 
 def main():
     # Source and target directories
-    source_dir = Path("/Users/etash/Downloads/dc-agent-tasks")
+    source_dir = Path("/Users/etash/Downloads/ot-agent-tasks")
     target_dir = Path("/Users/etash/Downloads/sandboxes_tasks_terminal_bench")
     
     # Create target directory if it doesn't exist

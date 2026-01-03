@@ -45,7 +45,7 @@ def clean_up_sandboxes(dataset_path: str, failed_tasks: List[str]) -> str:
     return temp_dir
 
 class CleanUpSandboxesGenerator(BaseDataGenerator):
-    parser_description = "Clean DC-Agent sandboxes dataset"
+    parser_description = "Clean OT-Agent sandboxes dataset"
     default_target_repo = "mlfoundations-dev/clean-sandboxes-tasks-recleaned"
 
     def add_arguments(self, parser):

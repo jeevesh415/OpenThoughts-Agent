@@ -224,7 +224,7 @@ EOF
   unset AIOHTTP_SOCKS_PROXY ALL_PROXY all_proxy SOCKS_PROXY socks_proxy
   
   # Run the original test_daytona.py (now works without proxy interference)
-  bash /p/project/laionize/marianna/terminal_bench/dc-agent/train/jsc/helper_training.sh
+  bash /p/project/laionize/marianna/terminal_bench/ot-agent/train/jsc/helper_training.sh
 EOS
 )
 

@@ -1,6 +1,6 @@
 # Data Generation
 
-The `dc-agent/data` directory houses every data pipeline used by dc-agent, with each subdirectory representing a unique, named data pipeline. Data pipeline directories contain one or more generation strategies, which turn some upstream data source into:
+The `ot-agent/data` directory houses every data pipeline used by ot-agent, with each subdirectory representing a unique, named data pipeline. Data pipeline directories contain one or more generation strategies, which turn some upstream data source into:
 - **tasks** – runnable [Harbor](https://github.com/laude-institute/harbor) tasks that agents train on
 - **traces** – execution logs produced by running agents over those tasks, typically from the default Terminus-2 agent in Harbor
 
@@ -20,7 +20,7 @@ All data pipelines should ship a single `generate.py` script that completely spe
 
 ### Running
 ```bash
-cd dc-agent
+cd ot-agent
 python data/<dataset>/generate.py --optional-flags
 ```
 
@@ -95,21 +95,19 @@ Many datasets maintain both: a lightweight `generate.py` for quick local reprodu
 
 ## Scripts
 
-### `scripts/datagen/launch_trace_from_parquet.py`
-- Convenience entry point for trace-only jobs that start from a Parquet snapshot of tasks.
-- Workflow: downloads a parquet dataset from Hugging Face (`--tasks_repo` / `--tasks_revision`), extracts tasks to a local directory (default `<experiments_dir>/tasks_extracted`), then launches `python -m hpc.launch` with trace generation enabled and task generation disabled.
-- Select a specific parquet file from the downloaded snapshot with `--parquet_name`; otherwise the first `*.parquet` discovered is used.
-- Supports dry runs (`--dry_run`) and safe re-extraction via `--overwrite`.
-- Passes through vLLM, sandbox, and trace configuration flags so the launched job matches your desired hardware footprint.
+### `scripts/datagen/extract_tasks_from_parquet.py`
+- Lightweight helper to turn a parquet snapshot (local path or Hugging Face dataset repo) into Harbor-ready task directories.
+- Supports optional `--tasks_revision` to pin a specific dataset commit and `--parquet_name` to pick one parquet when multiple exist.
+- Controls re-extraction behavior via `--on_exist {error,skip,overwrite}` and offers a `--dry_run` mode for quick inspections.
 
 #### Example
 ```bash
-python scripts/datagen/launch_trace_from_parquet.py \
-  --experiments_dir $DCFT/experiments \
-  --trace_target_repo org/traces-repo \
-  --vllm_model_path meta-llama/Llama-3-70b-instruct \
-  --tasks_repo DCAgent/nl2bash \
-  --parquet_name tasks/train-00000-of-00001.parquet
+python scripts/datagen/extract_tasks_from_parquet.py \
+  --parquet DCAgent/nl2bash \
+  --tasks_revision main \
+  --output_dir $DCFT/experiments/tasks_extracted \
+  --parquet_name tasks/train-00000-of-00001.parquet \
+  --on_exist overwrite
 ```
 
 ## Adding a new dataset

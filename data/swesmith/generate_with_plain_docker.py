@@ -21,7 +21,7 @@ from data.swesmith.task_templates import (
 from data.swesmith.utils import get_image_names
 from scripts.harbor.run_and_export_traces import run_dataset_to_traces
 from swesmith.profiles import registry
-from data.gcs_cache import gcs_cache
+
 
 def create_sandboxed_task(datum: dict, out_root: Path, idx: int) -> None:
     """Create one sandbox directory with instruction, environment, solution, basic test harness, and metadata."""
@@ -70,7 +70,7 @@ def create_sandboxed_task(datum: dict, out_root: Path, idx: int) -> None:
     test_state = render_test_state_py(test_output_path="/logs/test_output.log")
     (d / "tests" / "test_state.py").write_text(test_state, encoding="utf-8")
 
-@gcs_cache()
+
 def create_sandboxed_tasks(limit: int, offset: int = 0) -> Path:
     """
     Load swesmith and emit up to `limit` tasks starting at `offset` and return temp directory path.
@@ -126,8 +126,8 @@ def main() -> None:
         dataset_path=final_dataset_dir,
         repo_id="mlfoundations-dev/swesmith_with_plain_docker-sandboxes"
     )
-    # hf_dataset = run_dataset_to_traces(final_dataset_dir, model_name="gpt-5-nano-2025-08-07", agent_name="terminus-2", n_concurrent=128, agent_kwargs={"max_episodes": 8})
-    # upload_traces_to_hf(hf_dataset, "mlfoundations-dev/swesmith_with_plain_docker-sandboxes-traces-terminus-2", "SFT")
+    hf_dataset = run_dataset_to_traces(final_dataset_dir, model_name="gpt-5-nano-2025-08-07", agent_name="terminus-2", n_concurrent=128, agent_kwargs={"max_episodes": 8})
+    upload_traces_to_hf(hf_dataset, "mlfoundations-dev/swesmith_with_plain_docker-sandboxes-traces-terminus-2", "SFT")
 
 
 if __name__ == "__main__":

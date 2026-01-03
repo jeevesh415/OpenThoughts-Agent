@@ -31,8 +31,8 @@ def compute_hash(content: str) -> str:
 def remove_duplicates(dry_run=True):
     """Remove duplicate tasks from successful_runs_again that exist in successful_runs."""
     
-    dir1 = Path("/Users/etash/Documents/dc-agent/successful_runs")
-    dir2 = Path("/Users/etash/Documents/dc-agent/successful_runs_again")
+    dir1 = Path("/Users/etash/Documents/ot-agent/successful_runs")
+    dir2 = Path("/Users/etash/Documents/ot-agent/successful_runs_again")
     
     print(f"{'='*80}")
     print(f"{'DRY RUN MODE' if dry_run else 'ACTUAL REMOVAL MODE'}")

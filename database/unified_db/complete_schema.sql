@@ -1,4 +1,4 @@
--- Complete Schema for DC-Agents Registration System
+-- Complete Schema for OT-Agents Registration System
 -- Run this file to set up all required tables
 
 -- Enable UUID extension

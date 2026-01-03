@@ -74,9 +74,9 @@ def find_passing_tasks(job_dirs):
 
 if __name__ == "__main__":
     job_directories = [
-        "/Users/etashguha/Documents/dc-agent/jobs/bespoke_verification_v2",
-        "/Users/etashguha/Documents/dc-agent/jobs/bespoke_verification_v2_try1",
-        "/Users/etashguha/Documents/dc-agent/jobs/bespoke_verification_v2_try3"
+        "/Users/etashguha/Documents/ot-agent/jobs/bespoke_verification_v2",
+        "/Users/etashguha/Documents/ot-agent/jobs/bespoke_verification_v2_try1",
+        "/Users/etashguha/Documents/ot-agent/jobs/bespoke_verification_v2_try3"
     ]
 
     print("Finding tasks with pass@3 > 0...")

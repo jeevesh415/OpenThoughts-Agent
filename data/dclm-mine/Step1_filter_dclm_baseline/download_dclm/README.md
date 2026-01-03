@@ -7,4 +7,4 @@ ws_allocate dcagent 90
 python make_dclm_urls.py 
 
 # downloads all of them as intended with high-bandwidth datamover nodes
-dtwget --account=p_agents_finetuning -P /data/horse/ws/rehe951g-dcagent/dclm-baseline/ -x --no-host-directories --cut-dirs=5 -i /home/rehe951g/dc-agent/data/dclm-mine/Step1_filter_dclm_baseline/download_dclm/urls.txt
+dtwget --account=p_agents_finetuning -P /data/horse/ws/rehe951g-dcagent/dclm-baseline/ -x --no-host-directories --cut-dirs=5 -i /home/rehe951g/ot-agent/data/dclm-mine/Step1_filter_dclm_baseline/download_dclm/urls.txt
