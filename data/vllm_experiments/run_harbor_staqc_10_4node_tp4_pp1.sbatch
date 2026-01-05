@@ -5,13 +5,13 @@
 #SBATCH --ntasks-per-node 1
 #SBATCH --cpus-per-task=64
 #SBATCH --account CCR24067
-#SBATCH --output=/scratch/10000/eguha3/dc-agent/data/vllm_experiments/logs/harbor_staqc_10_4node_tp4_pp1_v3_%j.out
+#SBATCH --output=${DCAGENT_DIR}/data/vllm_experiments/logs/harbor_staqc_10_4node_tp4_pp1_v3_%j.out
 #SBATCH --job-name=harbor_staqc_10_v3
 
 set -eo pipefail
 
-EXPERIMENTS_DIR="/scratch/10000/eguha3/dc-agent/data/vllm_experiments"
-CONFIG_FILE="/scratch/10000/eguha3/dc-agent/data/vllm_experiments/configs/harbor_113k/config_26_4node_tp4_pp1_113k.json"
+EXPERIMENTS_DIR="${DCAGENT_DIR}/data/vllm_experiments"
+CONFIG_FILE="${DCAGENT_DIR}/data/vllm_experiments/configs/harbor_113k/config_26_4node_tp4_pp1_113k.json"
 CONFIG_NAME="staqc_10_4node_tp4_pp1_v3"
 
 echo "============================================"
@@ -118,8 +118,8 @@ echo ""
 echo "=== Step 5: Running Harbor Evaluation ==="
 
 # Use staqc 10 task subset
-DATASET_PATH="/scratch/10000/eguha3/dc-agent/data/vllm_experiments/staqc_10_tasks"
-HARBOR_CONFIG="/scratch/10000/eguha3/dc-agent/eval/tacc/dcagent_eval_config.yaml"
+DATASET_PATH="${DCAGENT_DIR}/data/vllm_experiments/staqc_10_tasks"
+HARBOR_CONFIG="${DCAGENT_DIR}/eval/tacc/dcagent_eval_config.yaml"
 
 echo "Using dataset path: $DATASET_PATH"
 echo "Using harbor config: $HARBOR_CONFIG"

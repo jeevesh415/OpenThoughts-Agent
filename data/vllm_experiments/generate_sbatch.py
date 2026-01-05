@@ -67,7 +67,7 @@ export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
 
 # Start vLLM server
 echo "Starting vLLM server on head node..."
-cd /scratch/10000/eguha3/dc-agent/data/vllm_experiments
+cd ${DCAGENT_DIR}/data/vllm_experiments
 
 {vllm_command} &
 VLLM_PID=$!
@@ -155,7 +155,7 @@ export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
 
 # Start headless vLLM worker
 echo "Starting vLLM worker (headless) on node {node_id}..."
-cd /scratch/10000/eguha3/dc-agent/data/vllm_experiments
+cd ${DCAGENT_DIR}/data/vllm_experiments
 
 {vllm_command}
 

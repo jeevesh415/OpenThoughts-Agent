@@ -5,9 +5,9 @@ import os
 import re
 from pathlib import Path
 
-SBATCH_DIR = Path("/scratch/10000/eguha3/dc-agent/data/ablation_experiments/sbatch")
-JOBS_DIR = Path("/scratch/10000/eguha3/dc-agent/data/ablation_experiments/sbatch/jobs")
-RESUME_SBATCH_DIR = Path("/scratch/10000/eguha3/dc-agent/data/ablation_experiments/resume_sbatch")
+SBATCH_DIR = Path(os.path.expandvars("${DCAGENT_DIR}/data/ablation_experiments/sbatch"))
+JOBS_DIR = Path(os.path.expandvars("${DCAGENT_DIR}/data/ablation_experiments/sbatch/jobs"))
+RESUME_SBATCH_DIR = Path(os.path.expandvars("${DCAGENT_DIR}/data/ablation_experiments/resume_sbatch"))
 
 # Map experiment names to their job timestamps (updated 2025-12-28/29/30)
 EXPERIMENTS = {
@@ -192,7 +192,7 @@ def main():
     # Create run_all_resumes.sh
     run_all_content = '''#!/bin/bash
 # Run all resume sbatch files
-cd /scratch/10000/eguha3/dc-agent/data/ablation_experiments/resume_sbatch
+cd ${DCAGENT_DIR}/data/ablation_experiments/resume_sbatch
 
 for sbatch_file in *.sbatch; do
     echo "Submitting $sbatch_file..."

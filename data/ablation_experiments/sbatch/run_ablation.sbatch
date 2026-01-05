@@ -5,7 +5,7 @@
 #SBATCH --ntasks-per-node 1
 #SBATCH --cpus-per-task=64
 #SBATCH --account CCR24067
-#SBATCH --output=/scratch/10000/eguha3/dc-agent/data/ablation_experiments/logs/ablation_%j.out
+#SBATCH --output=${DCAGENT_DIR}/data/ablation_experiments/logs/ablation_%j.out
 #SBATCH --job-name=ablation
 
 set -eo pipefail
@@ -18,7 +18,7 @@ if [ -z "$1" ]; then
 fi
 
 CONFIG_PATH="$1"
-ABLATION_DIR="/scratch/10000/eguha3/dc-agent/data/ablation_experiments"
+ABLATION_DIR="${DCAGENT_DIR}/data/ablation_experiments"
 
 if [ ! -f "$CONFIG_PATH" ]; then
     # Try relative to ablation dir
@@ -78,7 +78,7 @@ TIMEOUT_MULTIPLIER=$(parse_config "job.timeout_multiplier")
 DATASET_NAME="${INPUT_REPO_ID##*/}"
 OUTPUT_REPO_ID="DCAgent/${OUTPUT_REPO_SUFFIX}_traces"
 
-EXPERIMENTS_DIR="/scratch/10000/eguha3/dc-agent/data/ablation_experiments"
+EXPERIMENTS_DIR="${DCAGENT_DIR}/data/ablation_experiments"
 NUM_SHARDS=8
 NODES_PER_SHARD=4
 
@@ -164,7 +164,7 @@ VLLM_PIPELINE_PARALLEL_SIZE=1
 echo ""
 echo "=== Step 2: Downloading Dataset ==="
 
-export PYTHONPATH="/scratch/10000/eguha3/dc-agent:/scratch/10000/eguha3/dc-agent/scripts/harbor:$PYTHONPATH"
+export PYTHONPATH="${DCAGENT_DIR}:${DCAGENT_DIR}/scripts/harbor:$PYTHONPATH"
 
 DATASET_PATH=$(LD_LIBRARY_PATH="" /scratch/10000/eguha3/vllm_sandboxes_backup/bin/python3 -c "
 from tasks_parquet_converter import from_hf_dataset
@@ -319,7 +319,7 @@ start_vllm_for_shard() {
             VLLM_ALL2ALL_BACKEND="pplx" \
             VLLM_ENABLE_EPLB="false" \
             SERVE_HTTP_PORT="$api_port" \
-        $PYTHON_BIN /scratch/10000/eguha3/dc-agent/scripts/vllm/dp_debug.py \
+        $PYTHON_BIN ${DCAGENT_DIR}/scripts/vllm/dp_debug.py \
         >> "$vllm_log" 2>&1 &
 
     VLLM_PIDS[$shard_idx]=$!
@@ -358,7 +358,7 @@ echo "All vLLM servers are ready!"
 echo ""
 echo "=== Step 6: Running $NUM_SHARDS Harbor Jobs in Parallel ==="
 
-HARBOR_CONFIG="/scratch/10000/eguha3/dc-agent/eval/tacc/dcagent_eval_config.yaml"
+HARBOR_CONFIG="${DCAGENT_DIR}/eval/tacc/dcagent_eval_config.yaml"
 TIMESTAMP=$(date +'%Y%m%d_%H%M%S')
 CONFIG_NAME="${EXPERIMENT_NAME}_${TIMESTAMP}"
 

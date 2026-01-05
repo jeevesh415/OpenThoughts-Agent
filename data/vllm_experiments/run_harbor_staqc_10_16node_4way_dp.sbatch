@@ -5,12 +5,12 @@
 #SBATCH --ntasks-per-node 1
 #SBATCH --cpus-per-task=64
 #SBATCH --account CCR24067
-#SBATCH --output=/scratch/10000/eguha3/dc-agent/data/vllm_experiments/logs/harbor_staqc_10_16node_4way_dp_%j.out
+#SBATCH --output=${DCAGENT_DIR}/data/vllm_experiments/logs/harbor_staqc_10_16node_4way_dp_%j.out
 #SBATCH --job-name=harbor_staqc_10_4way_dp
 
 set -eo pipefail
 
-EXPERIMENTS_DIR="/scratch/10000/eguha3/dc-agent/data/vllm_experiments"
+EXPERIMENTS_DIR="${DCAGENT_DIR}/data/vllm_experiments"
 CONFIG_NAME="staqc_10_16node_4way_dp"
 NUM_SHARDS=4
 NODES_PER_SHARD=4
@@ -89,7 +89,7 @@ VLLM_PIPELINE_PARALLEL_SIZE=1
 echo ""
 echo "=== Step 2: Sharding Dataset ==="
 
-DATASET_PATH="/scratch/10000/eguha3/dc-agent/data/vllm_experiments/staqc_10_tasks"
+DATASET_PATH="${DCAGENT_DIR}/data/vllm_experiments/staqc_10_tasks"
 SHARD_DIR="$EXPERIMENTS_DIR/dataset_shards_${SLURM_JOB_ID}"
 mkdir -p "$SHARD_DIR"
 
@@ -247,7 +247,7 @@ start_vllm_for_shard() {
             VLLM_ALL2ALL_BACKEND="pplx" \
             VLLM_ENABLE_EPLB="false" \
             SERVE_HTTP_PORT="$api_port" \
-        $PYTHON_BIN /scratch/10000/eguha3/dc-agent/scripts/vllm/dp_debug.py \
+        $PYTHON_BIN ${DCAGENT_DIR}/scripts/vllm/dp_debug.py \
         >> "$vllm_log" 2>&1 &
 
     VLLM_PIDS[$shard_idx]=$!
@@ -289,7 +289,7 @@ echo "All vLLM servers are ready!"
 echo ""
 echo "=== Step 5: Running 4 Harbor Jobs in Parallel ==="
 
-HARBOR_CONFIG="/scratch/10000/eguha3/dc-agent/eval/tacc/dcagent_eval_config.yaml"
+HARBOR_CONFIG="${DCAGENT_DIR}/eval/tacc/dcagent_eval_config.yaml"
 TIMESTAMP=$(date +'%Y%m%d_%H%M%S')
 
 declare -a HARBOR_PIDS

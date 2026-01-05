@@ -13,8 +13,10 @@ from supabase import create_client, Client
 from dotenv import load_dotenv
 
 # Load environment variables from secret.env
-load_dotenv('/Users/etash/Documents/dc-agent/secret.env')
-
+SECRET_ENV_PATH = os.environ.get("DC_AGENT_SECRET_ENV")
+if SECRET_ENV_PATH and os.path.isfile(SECRET_ENV_PATH):
+    load_dotenv(SECRET_ENV_PATH)
+    
 def create_supabase_client() -> Client:
     """Create and return Supabase client."""
     url = os.getenv('SUPABASE_URL')

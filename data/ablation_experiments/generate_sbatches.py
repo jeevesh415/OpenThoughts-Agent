@@ -18,7 +18,7 @@ SBATCH_TEMPLATE = '''#!/bin/bash
 #SBATCH --ntasks-per-node 1
 #SBATCH --cpus-per-task=64
 #SBATCH --account CCR24067
-#SBATCH --output=/scratch/10000/eguha3/dc-agent/data/ablation_experiments/logs/{exp_name}_%j.out
+#SBATCH --output=${DCAGENT_DIR}/data/ablation_experiments/logs/{exp_name}_%j.out
 #SBATCH --job-name=abl_{exp_name_short}
 
 set -eo pipefail
@@ -27,7 +27,7 @@ EXPERIMENT_NAME="{exp_name}"
 INPUT_REPO_ID="{input_repo_id}"
 OUTPUT_REPO_ID="DCAgent/{output_repo_suffix}_traces"
 
-EXPERIMENTS_DIR="/scratch/10000/eguha3/dc-agent/data/ablation_experiments"
+EXPERIMENTS_DIR="${DCAGENT_DIR}/data/ablation_experiments"
 NUM_SHARDS=8
 NODES_PER_SHARD=4
 
@@ -100,8 +100,8 @@ VLLM_PIPELINE_PARALLEL_SIZE=1
 echo ""
 echo "=== Step 2: Downloading and Sharding Dataset ==="
 
-export PYTHONPATH="/scratch/10000/eguha3/dc-agent:/scratch/10000/eguha3/dc-agent/scripts/harbor:$PYTHONPATH"
-TEACHER_SCRIPTS_DIR="/scratch/10000/eguha3/dc-agent/data/ablation_experiments/sbatch/teacher_scripts"
+export PYTHONPATH="${DCAGENT_DIR}:${DCAGENT_DIR}/scripts/harbor:$PYTHONPATH"
+TEACHER_SCRIPTS_DIR="${DCAGENT_DIR}/data/ablation_experiments/sbatch/teacher_scripts"
 
 # Download and shard dataset (handles caching internally)
 SHARD_OUTPUT_FILE=$(mktemp)
@@ -224,7 +224,7 @@ start_vllm_for_shard() {{
             VLLM_ALL2ALL_BACKEND="pplx" \\
             VLLM_ENABLE_EPLB="false" \\
             SERVE_HTTP_PORT="$api_port" \\
-        $PYTHON_BIN /scratch/10000/eguha3/dc-agent/scripts/vllm/dp_debug.py \\
+        $PYTHON_BIN ${DCAGENT_DIR}/scripts/vllm/dp_debug.py \\
         >> "$vllm_log" 2>&1 &
 
     VLLM_PIDS[$shard_idx]=$!
@@ -263,7 +263,7 @@ echo "All vLLM servers are ready!"
 echo ""
 echo "=== Step 5: Running $NUM_SHARDS Harbor Jobs in Parallel ==="
 
-HARBOR_CONFIG="/scratch/10000/eguha3/dc-agent/eval/tacc/dcagent_eval_config.yaml"
+HARBOR_CONFIG="${DCAGENT_DIR}/eval/tacc/dcagent_eval_config.yaml"
 # Use deterministic job name based on experiment name and dataset fingerprint (not timestamp)
 CONFIG_NAME="${{EXPERIMENT_NAME}}_${{DATASET_FINGERPRINT}}"
 

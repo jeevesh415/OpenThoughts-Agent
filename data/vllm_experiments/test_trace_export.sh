@@ -12,7 +12,7 @@ echo "Success filter: ${SUCCESS_FILTER:-None}"
 
 /scratch/08134/negin/dc-agent-shared/SkyRL/envs/tacc_rl_v5/bin/python3 -c "
 import sys
-sys.path.insert(0, '/scratch/10000/eguha3/dc-agent')
+sys.path.insert(0, '${DCAGENT_DIR}')
 from scripts.harbor.run_and_export_traces import only_export_traces
 
 success_filter = '${SUCCESS_FILTER}' if '${SUCCESS_FILTER}' else None

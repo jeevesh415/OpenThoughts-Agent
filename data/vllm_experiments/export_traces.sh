@@ -49,7 +49,7 @@ source /scratch/08134/negin/dc-agent-shared/dc-agent/eval/tacc/secret.env 2>/dev
 import sys
 import os
 from pathlib import Path
-sys.path.insert(0, '/scratch/10000/eguha3/dc-agent')
+sys.path.insert(0, '${DCAGENT_DIR}')
 
 # Import harbor utilities directly to collect rows before dataset creation
 from harbor.utils.traces_utils import (

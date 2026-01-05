@@ -5,7 +5,7 @@
 #SBATCH --ntasks-per-node 1
 #SBATCH --cpus-per-task=64
 #SBATCH --account CCR24067
-#SBATCH --output=/scratch/10000/eguha3/dc-agent/data/sbatches/logs/harbor_32node_8way_dp_%j.out
+#SBATCH --output=${DCAGENT_DIR}/data/sbatches/logs/harbor_32node_8way_dp_%j.out
 #SBATCH --job-name=harbor_32node_8way_dp
 
 set -eo pipefail
@@ -19,7 +19,7 @@ INPUT_REPO_ID="$1"
 DATASET_NAME="${INPUT_REPO_ID##*/}"
 OUTPUT_REPO_ID="DCAgent/${DATASET_NAME}_glm_4.7_traces_locetash"
 
-SBATCHES_DIR="/scratch/10000/eguha3/dc-agent/data/sbatches"
+SBATCHES_DIR="${DCAGENT_DIR}/data/sbatches"
 NUM_SHARDS=8
 NODES_PER_SHARD=4
 
@@ -91,8 +91,8 @@ VLLM_PIPELINE_PARALLEL_SIZE=1
 echo ""
 echo "=== Step 2: Downloading and Sharding Dataset ==="
 
-export PYTHONPATH="/scratch/10000/eguha3/dc-agent:/scratch/10000/eguha3/dc-agent/scripts/harbor:$PYTHONPATH"
-TEACHER_SCRIPTS_DIR="/scratch/10000/eguha3/dc-agent/data/ablation_experiments/sbatch/teacher_scripts"
+export PYTHONPATH="${DCAGENT_DIR}:${DCAGENT_DIR}/scripts/harbor:$PYTHONPATH"
+TEACHER_SCRIPTS_DIR="${DCAGENT_DIR}/data/ablation_experiments/sbatch/teacher_scripts"
 
 SHARD_OUTPUT_FILE=$(mktemp)
 LD_LIBRARY_PATH="" /scratch/10000/eguha3/vllm_sandboxes_backup/bin/python3 "$TEACHER_SCRIPTS_DIR/shard_dataset.py" "$INPUT_REPO_ID" "$NUM_SHARDS" "$SHARD_OUTPUT_FILE"
@@ -214,7 +214,7 @@ start_vllm_for_shard() {
             VLLM_ALL2ALL_BACKEND="pplx" \
             VLLM_ENABLE_EPLB="false" \
             SERVE_HTTP_PORT="$api_port" \
-        $PYTHON_BIN /scratch/10000/eguha3/dc-agent/scripts/vllm/dp_debug.py \
+        $PYTHON_BIN ${DCAGENT_DIR}/scripts/vllm/dp_debug.py \
         >> "$vllm_log" 2>&1 &
 
     VLLM_PIDS[$shard_idx]=$!
@@ -253,7 +253,7 @@ echo "All vLLM servers are ready!"
 echo ""
 echo "=== Step 5: Running $NUM_SHARDS Harbor Jobs in Parallel ==="
 
-HARBOR_CONFIG="/scratch/10000/eguha3/dc-agent/eval/tacc/dcagent_eval_config.yaml"
+HARBOR_CONFIG="${DCAGENT_DIR}/eval/tacc/dcagent_eval_config.yaml"
 CONFIG_NAME="${DATASET_NAME}_32node_8way_dp_${DATASET_FINGERPRINT}"
 
 declare -a HARBOR_PIDS

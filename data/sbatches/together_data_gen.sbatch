@@ -5,7 +5,7 @@
 #SBATCH --ntasks-per-node 1
 #SBATCH --cpus-per-task=64
 #SBATCH --account CCR24067
-#SBATCH --output=/scratch/10000/eguha3/dc-agent/data/sbatches/logs/together_data_gen_%j.out
+#SBATCH --output=${DCAGENT_DIR}/data/sbatches/logs/together_data_gen_%j.out
 #SBATCH --job-name=together_data_gen
 
 set -eo pipefail
@@ -23,8 +23,8 @@ DATASET_NAME="${INPUT_REPO_ID##*/}"
 # Always upload to DCAgent org with glm_4.6_traces suffix
 OUTPUT_REPO_ID="DCAgent/${DATASET_NAME}_glm_4.6_traces_together_again"
 
-LOGS_DIR="/scratch/10000/eguha3/dc-agent/data/sbatches/logs"
-HARBOR_CONFIG="/scratch/10000/eguha3/dc-agent/eval/tacc/dcagent_eval_config.yaml"
+LOGS_DIR="${DCAGENT_DIR}/data/sbatches/logs"
+HARBOR_CONFIG="${DCAGENT_DIR}/eval/tacc/dcagent_eval_config.yaml"
 
 echo "============================================"
 echo "Harbor + Together AI Data Generation"
@@ -65,7 +65,7 @@ echo ""
 echo "=== Step 2: Downloading Dataset ==="
 
 # Add dc-agent/scripts/harbor to PYTHONPATH for tasks_parquet_converter.py
-export PYTHONPATH="/scratch/10000/eguha3/dc-agent/scripts/harbor:$PYTHONPATH"
+export PYTHONPATH="${DCAGENT_DIR}/scripts/harbor:$PYTHONPATH"
 
 DATASET_PATH=$(LD_LIBRARY_PATH="" /scratch/10000/eguha3/tacc_rl_v6/bin/python3 -c "
 from tasks_parquet_converter import from_hf_dataset

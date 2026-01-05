@@ -5,7 +5,7 @@
 #SBATCH --ntasks-per-node 1
 #SBATCH --cpus-per-task=16
 #SBATCH --account CCR24067
-#SBATCH --output=/scratch/10000/eguha3/dc-agent/data/vllm_experiments/logs/test_trace_upload_%j.out
+#SBATCH --output=${DCAGENT_DIR}/data/vllm_experiments/logs/test_trace_upload_%j.out
 #SBATCH --job-name=test_upload
 
 set -eo pipefail
@@ -24,7 +24,7 @@ conda activate /scratch/08134/negin/dc-agent-shared/SkyRL/envs/tacc_rl_v5
 # Source HF token
 source /scratch/10000/eguha3/old-dc-agent/secret.env
 
-cd /scratch/10000/eguha3/dc-agent/data/vllm_experiments
+cd ${DCAGENT_DIR}/data/vllm_experiments
 
 # Use an existing job directory for testing
 JOB_DIR="jobs/staqc_10_4node_tp4_pp1_20251214_214233"
