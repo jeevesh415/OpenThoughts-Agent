@@ -15,6 +15,8 @@ if [ -z "$1" ]; then
     exit 1
 fi
 
+source /scratch/10000/eguha3/old-dc-agent/secret.env
+
 INPUT_REPO_ID="$1"
 DATASET_NAME="${INPUT_REPO_ID##*/}"
 OUTPUT_REPO_ID="DCAgent/${DATASET_NAME}_glm_4.7_traces_locetash"
@@ -56,8 +58,6 @@ export UV_CACHE_DIR=/scratch/10000/eguha3/uv_cache_dir
 export HYDRA_FULL_ERROR=1
 export HF_CACHE_DIR=/scratch/08134/negin/dc-agent-shared/.hf_cache
 export HF_HUB_CACHE=$SCRATCH/hub
-
-source /scratch/10000/eguha3/old-dc-agent/secret.env
 
 ln -sf /home1/apps/gcc/15.1.0/lib64/libstdc++.so.6 /scratch/10000/eguha3/vllm_sandboxes_backup/lib/libstdc++.so.6
 export LD_LIBRARY_PATH=/home1/apps/gcc/15.1.0/lib64:/scratch/10000/eguha3/vllm_sandboxes_backup/lib/python3.12/site-packages/torch/lib:$LD_LIBRARY_PATH
