@@ -1,7 +1,45 @@
 from __future__ import annotations
 
 import argparse
-from typing import Any
+from typing import Any, List
+
+# Re-export from harbor_utils for backwards compatibility
+from hpc.harbor_utils import run_harbor_cli
+
+
+def parse_comma_separated(value: str) -> List[str]:
+    """Parse comma-separated string into list of stripped values.
+
+    Args:
+        value: Comma-separated string (e.g., "a, b, c")
+
+    Returns:
+        List of stripped non-empty values
+    """
+    return [v.strip() for v in value.split(",") if v.strip()]
+
+
+def normalize_cli_args(raw_args: Any) -> List[str]:
+    """Normalize extra CLI args to a list of strings.
+
+    Handles various input formats:
+    - None/empty: returns []
+    - String: splits on whitespace
+    - List/tuple: converts each element to string
+
+    Args:
+        raw_args: CLI arguments in various formats
+
+    Returns:
+        List of string arguments
+    """
+    if not raw_args:
+        return []
+    if isinstance(raw_args, str):
+        return raw_args.split()
+    if isinstance(raw_args, (list, tuple)):
+        return [str(arg) for arg in raw_args]
+    return []
 
 
 def parse_bool_flag(value: Any) -> bool:
@@ -64,8 +102,27 @@ def coerce_numeric_cli_values(args_dict: dict[str, Any]) -> dict[str, Any]:
     return args_dict
 
 
+def normalize_job_type(exp_args: dict) -> str | None:
+    """Normalize job_type string without applying a default.
+
+    Args:
+        exp_args: Experiment arguments dict
+
+    Returns:
+        Normalized job_type string (lowercase, stripped) or None if not set
+    """
+    raw_value = exp_args.get("job_type")
+    if raw_value is None or raw_value == "":
+        return None
+    return str(raw_value).strip().lower()
+
+
 __all__ = [
+    "parse_comma_separated",
+    "normalize_cli_args",
+    "normalize_job_type",
     "parse_bool_flag",
     "coerce_str_bool_none",
     "coerce_numeric_cli_values",
+    "run_harbor_cli",
 ]

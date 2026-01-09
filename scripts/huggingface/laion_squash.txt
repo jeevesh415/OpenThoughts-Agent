@@ -1,0 +1,22 @@
+# Example model list for reset_hf_repos*.sbatch scripts.
+# List one Hugging Face repo per line.
+# Lines starting with '#' are ignored.
+
+laion/exp_tas_top_p_0_9_traces
+laion/exp_tas_top_p_0_8_traces
+laion/exp_tas_temp_0_5_traces
+laion/exp_tas_top_p_0_95_traces
+laion/exp_tas_max_tokens_2048_traces
+laion/exp_tas_high_diversity_traces
+laion/exp_tas_top_k_128_traces
+laion/exp_tas_repetition_penalty_1_2_traces
+laion/exp_tas_summarize_off_traces
+laion/exp_tas_summarize_threshold_2048_traces
+laion/exp_tas_top_k_64_traces
+laion/exp_tas_max_tokens_4096_traces
+laion/exp_tas_min_p_0_01_traces
+laion/exp_tas_top_k_16_traces
+laion/exp_tas_min_p_0_05_traces
+laion/exp_tas_frequency_penalty_1_0_traces
+laion/exp_tas_raw_content_off_traces
+laion/exp_tas_summarize_threshold_16384_traces
