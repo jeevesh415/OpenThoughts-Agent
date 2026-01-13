@@ -66,7 +66,8 @@ def _load_split(split: str):
     with _DATASET_LOCK:
         cached = _DATASET_CACHE.get(split)
         if cached is None:
-            cached = load_dataset("jiacheng-ye/nl2bash", split=split)
+            # "jiacheng-ye/nl2bash" has script (not supported by hf)
+            cached = load_dataset("Harsh1729/nl2bash", split=split)
             _DATASET_CACHE[split] = cached
         return cached
 
@@ -219,7 +220,7 @@ def materialise_pre_task(
 
     assets = build_pre_task_assets(example, mutated)
     metadata: Dict[str, Any] = {
-        "dataset": "jiacheng-ye/nl2bash",
+        "dataset": "Harsh1729/nl2bash",
         "split": example.split,
         "index": example.index,
     }
@@ -267,4 +268,12 @@ def copy_generated_task(
     if final_dir.exists():
         shutil.rmtree(final_dir)
     shutil.copytree(source_task_dir, final_dir)
+
+    seeds_dir = final_dir / "environment" / "seeds"
+    seeds_dir.mkdir(parents=True, exist_ok=True)
+    # .gitkeep for empty directory
+    gitkeep = seeds_dir / ".gitkeep"
+    if not any(seeds_dir.iterdir()):
+        gitkeep.touch()
+
     return destination_root

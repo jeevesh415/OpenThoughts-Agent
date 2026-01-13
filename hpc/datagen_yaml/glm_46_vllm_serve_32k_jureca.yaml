@@ -1,6 +1,6 @@
 engine:
   type: vllm_local
-  model: Qwen/Qwen3-Coder-30B-A3B-Instruct
+  model: QuantTrio/GLM-4.6-AWQ
   max_output_tokens: 8192
   healthcheck_interval: 300
   vllm_local: {}
@@ -8,25 +8,25 @@ backend:
   type: ray
   wait_for_endpoint: true
   tensor_parallel_size: 8
-  pipeline_parallel_size: 1
-  data_parallel_size: 1
+  healthcheck_max_attempts: 120
+  healthcheck_retry_delay: 15
 vllm_server:
-  model_path: Qwen/Qwen3-Coder-30B-A3B-Instruct
+  model_path: QuantTrio/GLM-4.6-AWQ
   num_replicas: 1
   tensor_parallel_size: 8
-  pipeline_parallel_size: 1
-  data_parallel_size: 1
-  time_limit: '48:00:00'
+  time_limit: '166:00:00'
   max_model_len: 32768
-  max_num_seqs: 16
+  max_num_seqs: 64
   gpu_memory_utilization: 0.9
-  swap_space: 64
-  enable_expert_parallel: false
-  trust_remote_code: true
+  swap_space: 8
+  enable_expert_parallel: true
   enable_auto_tool_choice: true
-  tool_call_parser: qwen3_xml
-  reasoning_parser: qwen3
+  tool_call_parser: glm45
+  reasoning_parser: glm45
+  trust_remote_code: true
   extra_args:
+  - --attention-backend
+  - TRITON_ATTN
   - --dtype
   - bfloat16
   - --block-size

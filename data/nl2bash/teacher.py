@@ -85,7 +85,7 @@ def build_job_config(dataset_dir: Path, cfg: TeacherJobConfig) -> JobConfig:
 async def run_job_async(job_config: JobConfig) -> Tuple[Job, Any]:
     """Execute the job asynchronously."""
 
-    job = Job(job_config, enable_progress_log=True)
+    job = Job(job_config)
     result = await job.run()
     return job, result
 
@@ -119,7 +119,7 @@ def locate_generated_task(job: Job, dirname: str, result_payload: Optional[dict]
             try:
                 payload = json.loads(trial_result_path.read_text(encoding="utf-8"))
                 verifier_result = payload.get("verifier_result") or {}
-                reward = verifier_result.get("reward")
+                reward = verifier_result.get("rewards").get("reward")
             except Exception:
                 reward = None
         is_positive = False

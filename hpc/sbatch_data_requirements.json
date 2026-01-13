@@ -1,4 +1,18 @@
 {
+  "jureca": [
+    {
+      "cluster": "jureca",
+      "path": "hpc/sbatch_data/jureca_vllm_server.sbatch"
+    },
+    {
+      "cluster": "jureca",
+      "path": "hpc/sbatch_data/jureca_datagen.sbatch"
+    },
+    {
+      "cluster": "jureca",
+      "path": "hpc/sbatch_data/jureca_datatrace.sbatch"
+    }
+  ],
   "capella": [
     {
       "cluster": "capella",

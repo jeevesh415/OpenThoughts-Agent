@@ -61,7 +61,7 @@ def add_teacher_args(parser: argparse.ArgumentParser) -> argparse.ArgumentParser
     parser.add_argument(
         "--teacher-agent-model",
         type=str,
-        default=None,
+        default="openai/gpt-5-mini",
         help="Model name passed to the teacher agent.",
     )
     parser.add_argument(

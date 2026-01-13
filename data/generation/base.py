@@ -857,7 +857,13 @@ class BaseDataGenerator(ABC):
             return candidate
 
         if requires_endpoint:
-            trace_model_for_dispatch = f"hosted_vllm/{trace_model}"
+            if trace_model and not any(
+                trace_model.lower().startswith(p)
+                for p in ("openai/", "hosted_vllm/", "anthropic/", "gemini/")
+            ):
+                trace_model_for_dispatch = f"openai/{trace_model}"
+            else:
+                trace_model_for_dispatch = trace_model
             print(
                 "[traces] hosted_vllm routing",
                 {
@@ -1034,7 +1040,7 @@ class BaseDataGenerator(ABC):
         )
         job_config_for_run = update_agent_kwargs(job_config_for_run, agent_kwargs)
         if derived_metrics_endpoint:
-            ac = job_config_for_run.orchestrator.adaptive_concurrency
+            ac = getattr(job_config_for_run.orchestrator, 'adaptive_concurrency', None)
             if ac and ac.enabled and (
                 not ac.metrics_endpoint
                 or "replace-with" in str(ac.metrics_endpoint)

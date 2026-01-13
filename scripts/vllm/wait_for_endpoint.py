@@ -60,7 +60,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--max-attempts",
         type=int,
-        default=20,
+        default=50,
         help="Maximum number of healthcheck attempts (default: 20)",
     )
     parser.add_argument(

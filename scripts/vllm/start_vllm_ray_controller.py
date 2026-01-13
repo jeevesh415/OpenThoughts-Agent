@@ -77,9 +77,9 @@ def build_vllm_command(args: argparse.Namespace) -> List[str]:
     if not model:
         raise ValueError("VLLM_MODEL_PATH environment variable (or --model) is required")
 
-    tensor_parallel = args.tensor_parallel_size or env.get("VLLM_TENSOR_PARALLEL_SIZE") or 1
-    pipeline_parallel = args.pipeline_parallel_size or env.get("VLLM_PIPELINE_PARALLEL_SIZE") or 1
-    data_parallel = args.data_parallel_size or env.get("VLLM_DATA_PARALLEL_SIZE") or 1
+    tensor_parallel = args.tensor_parallel_size or int(env.get("VLLM_TENSOR_PARALLEL_SIZE") or 1)
+    pipeline_parallel = args.pipeline_parallel_size or int(env.get("VLLM_PIPELINE_PARALLEL_SIZE") or 1)
+    data_parallel = args.data_parallel_size or int(env.get("VLLM_DATA_PARALLEL_SIZE") or 1)
     custom_name = env.get("VLLM_CUSTOM_MODEL_NAME")
     hf_overrides = env.get("VLLM_HF_OVERRIDES")
     max_num_seqs = env.get("VLLM_MAX_NUM_SEQS")

@@ -5,7 +5,7 @@ engine:
   healthcheck_interval: 300
   vllm_local: {}
 backend:
-  type: vllm
+  type: ray
   wait_for_endpoint: true
   tensor_parallel_size: 8
   healthcheck_max_attempts: 120
@@ -37,5 +37,3 @@ vllm_server:
   - --enable-prefix-caching
   - --all2all-backend
   - pplx
-
-
