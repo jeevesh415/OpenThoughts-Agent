@@ -49,8 +49,7 @@ def harden_instructions(
         dataset=dataset,
         model=model,
         map_type="chat",
-        map_config=map_config,
-        temperature=0.7,
+        map_config=map_config
     )
 
     return result_dataset.dataset["hardened_instruction"]

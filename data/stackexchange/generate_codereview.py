@@ -21,7 +21,7 @@ from scripts.harbor.run_and_export_traces import run_dataset_to_traces
 from data.commons import upload_traces_to_hf
 from data.gcs_cache import gcs_cache
 
-@gcs_cache()
+# @gcs_cache()
 def download_and_extract_dataset(url: str) -> str:
     """Download and extract the Stack Exchange Code Review dataset"""
     print("Downloading Stack Exchange Code Review dataset...")
@@ -60,7 +60,7 @@ def download_and_extract_dataset(url: str) -> str:
     print(f"Found Posts.xml at: {posts_xml}")
     return posts_xml
 
-@gcs_cache()
+# @gcs_cache()
 def parse_posts_xml(posts_xml_path: str, limit: int = None) -> List[Dict[str, Any]]:
     """Parse Posts.xml and extract questions"""
     print("Parsing Posts.xml for questions...")

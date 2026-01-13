@@ -19,7 +19,7 @@ def main() -> str:
 
     instances = load_r2egym_instances()
     instructions = upsample_list([create_r2egym_instruction(inst) for inst in instances], 10_000)
-    hardened_instructions = harden_instructions(instructions, model="gpt-4o-mini")
+    hardened_instructions = harden_instructions(instructions, model="gpt-5-mini")
 
     dockerfile = create_standard_dockerfile()
     task_toml = create_r2egym_task_toml()

@@ -88,7 +88,7 @@ echo ""
 echo "=== Step 2: Downloading and Sharding Dataset ==="
 
 export PYTHONPATH="/scratch/10000/eguha3/dc-agent:/scratch/10000/eguha3/dc-agent/scripts/harbor:$PYTHONPATH"
-TEACHER_SCRIPTS_DIR="/scratch/10000/eguha3/dc-agent/data/ablation_experiments/sbatch/teacher_scripts"
+TEACHER_SCRIPTS_DIR="/scratch/10000/eguha3/dc-agent/data/sbatches/teacher_scripts"
 
 # Download and shard dataset (handles caching internally)
 SHARD_OUTPUT_FILE=$(mktemp)

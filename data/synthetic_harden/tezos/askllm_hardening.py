@@ -19,7 +19,7 @@ def main() -> str:
     posts_xml_path = download_and_extract_dataset("https://archive.org/download/stackexchange/tezos.stackexchange.com.7z")
     questions_data = parse_posts_xml(posts_xml_path)
     instructions = upsample_list(extract_questions_from_data(questions_data), 10_000)
-    hardened_instructions = harden_instructions(instructions, model="gpt-4o-mini")
+    hardened_instructions = harden_instructions(instructions, model="gpt-5-mini")
 
     dockerfile = create_standard_dockerfile()
     task_toml = create_standard_task_toml()
