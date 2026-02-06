@@ -303,13 +303,53 @@ def _flatten_dict(d: Dict[str, Any], prefix: str = "") -> Dict[str, Any]:
     return items
 
 
+# Characters that require quoting in Hydra CLI values
+# These have special meaning in Hydra's override grammar or shell expansion
+HYDRA_SPECIAL_CHARS = frozenset("<>{}[]$`\\\"'=,()@#:*?!|;&\n\r\t ")
+
+
+def _needs_quoting(s: str) -> bool:
+    """Check if a string needs quoting for Hydra CLI."""
+    return any(c in s for c in HYDRA_SPECIAL_CHARS)
+
+
+def _quote_for_hydra(s: str) -> str:
+    """Quote a string value for safe Hydra CLI passing.
+
+    Hydra's override parser uses a specific grammar. For strings with special
+    characters, we need to:
+    1. Escape newlines as \\n (literal backslash-n, not actual newline)
+    2. Escape backslashes as \\\\
+    3. Wrap in single quotes for shell safety
+    4. Escape internal single quotes as '\\''
+
+    Args:
+        s: String value to quote.
+
+    Returns:
+        Quoted string safe for Hydra CLI.
+    """
+    # First escape backslashes, then newlines (order matters)
+    escaped = s.replace("\\", "\\\\")
+    escaped = escaped.replace("\n", "\\n")
+    escaped = escaped.replace("\r", "\\r")
+    escaped = escaped.replace("\t", "\\t")
+
+    # For Hydra, wrap in single quotes and escape internal single quotes
+    # Shell escaping: 'foo'bar' -> 'foo'\''bar'
+    escaped = escaped.replace("'", "'\\''")
+
+    return f"'{escaped}'"
+
+
 def _format_hydra_arg(key: str, value: Any, prefix: str = "") -> str:
     """Format a single Hydra CLI argument.
 
     Handles special formatting for different types:
     - bool: lowercase true/false
     - list: YAML list notation (no outer quotes so Hydra parses as list, not string)
-    - str/int/float: direct value
+    - str: quoted if contains special chars, direct otherwise
+    - int/float: direct value
 
     Args:
         key: Dotted key name (e.g., "trainer.epochs").
@@ -333,6 +373,12 @@ def _format_hydra_arg(key: str, value: Any, prefix: str = "") -> str:
             for v in value
         )
         return f"{prefix}{key}=[{items}]"
+    elif isinstance(value, str):
+        # Quote strings that contain Hydra/shell special characters
+        if _needs_quoting(value):
+            return f"{prefix}{key}={_quote_for_hydra(value)}"
+        else:
+            return f"{prefix}{key}={value}"
     else:
         return f"{prefix}{key}={value}"
 
