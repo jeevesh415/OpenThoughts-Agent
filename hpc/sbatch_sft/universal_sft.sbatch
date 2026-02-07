@@ -19,6 +19,7 @@
 # ==============================================================================
 
 set -euo pipefail
+ml purge
 ulimit -c 0  # Disable core dumps to avoid filling disk space
 
 # Handle bash completion scripts that use BASH_COMPLETION_DEBUG
@@ -86,6 +87,12 @@ export DISABLE_VERSION_CHECK=1  # Skip LlamaFactory transformers version check
 
 # --- Distributed training setup ---
 export MASTER_ADDR=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
+# if histname contains jrc or jwb, set master addres to ${MASTER_ADDR}i to use infiniband
+if [[  "$MASTER_ADDR" == *"jrc"* || "$MASTER_ADDR" == *"jwb"* ]]; then
+    export MASTER_ADDR="${MASTER_ADDR}i"
+fi
+
+echo "MASTER_ADDR set to $MASTER_ADDR"
 export MASTER_PORT={master_port}
 export NUM_NODES=$SLURM_JOB_NUM_NODES
 export NUM_GPUS_PER_NODE={gpus_per_node}
@@ -123,4 +130,5 @@ echo "Working directory: $WORKDIR"
 echo "Nodes: $NUM_NODES, GPUs/node: $NUM_GPUS_PER_NODE"
 echo "======================================"
 
-{srun_command}
+echo LD_LIBRARY_PATH=$LD_LIBRARY_PATH
+{srun_command}  

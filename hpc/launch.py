@@ -248,7 +248,11 @@ def _materialize_dataset_and_model(
         dataset_path = tasks_output_dir
         print(f"Converted parquet to tasks folder: {dataset_path}")
 
-    model_path = snapshot_download(repo_id=base_config["model_name_or_path"], repo_type="model")
+
+    if os.path.isdir(base_config["model_name_or_path"]):
+        model_path = os.path.abspath(base_config["model_name_or_path"])
+    else:
+        model_path = snapshot_download(repo_id=base_config["model_name_or_path"], repo_type="model")
     print(f"Downloaded model to {model_path}")
 
     return _DatasetArtifacts(dataset_paths, dataset_path, model_path)

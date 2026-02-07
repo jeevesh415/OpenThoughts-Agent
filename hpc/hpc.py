@@ -350,7 +350,7 @@ jureca = HPC(
 
 jupiter = HPC(
     name="jupiter",
-    hostname_pattern=r"j.*?.jupiter.internal",
+    hostname_pattern=r"jpbl\.*?",
     dotenv_filename="jupiter.env",
     account="jureap1",
     partition="all",
