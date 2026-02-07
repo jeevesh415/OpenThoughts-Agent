@@ -905,6 +905,14 @@ class RLJobRunner:
             print(f"Ray cluster ready at {ray_cluster.address}", flush=True)
             print(f"Total GPUs available: {ray_cluster.total_gpus}", flush=True)
 
+            # Enable distributed containers for multi-node local backend jobs
+            # This allows Harbor to spread container workload across all Ray nodes
+            local_backends = {"podman_hpc", "docker", "apptainer"}
+            if ray_cluster.total_nodes > 1 and self.config.harbor_env in local_backends:
+                os.environ["HARBOR_DISTRIBUTED_CONTAINERS"] = "1"
+                print(f"[RLJobRunner] Enabled distributed {self.config.harbor_env} "
+                      f"across {ray_cluster.total_nodes} nodes", flush=True)
+
             # Check if Pinggy tunnel is needed for installed agents in cloud backends
             from hpc.pinggy_utils import (
                 needs_pinggy_tunnel,

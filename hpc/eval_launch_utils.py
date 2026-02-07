@@ -434,6 +434,14 @@ class EvalJobRunner:
         vllm_log = log_dir / f"{self.config.job_name}_vllm.log"
 
         with RayCluster.from_slurm(ray_cfg) as ray_cluster:
+            # Enable distributed containers for multi-node local backend jobs
+            # This allows Harbor to spread container workload across all Ray nodes
+            local_backends = {"podman_hpc", "docker", "apptainer"}
+            if ray_cluster.total_nodes > 1 and self.config.eval_env in local_backends:
+                os.environ["HARBOR_DISTRIBUTED_CONTAINERS"] = "1"
+                print(f"[EvalJobRunner] Enabled distributed {self.config.eval_env} "
+                      f"across {ray_cluster.total_nodes} nodes", flush=True)
+
             vllm_server = VLLMServer(
                 config=vllm_cfg,
                 ray_cluster=ray_cluster,

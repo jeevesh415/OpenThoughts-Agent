@@ -601,7 +601,7 @@ Examples:
     create_parser.add_argument("--region", default="us-central1", help="GCP region")
     create_parser.add_argument("--num-nodes", type=int, default=8, help="Number of CPU nodes")
     create_parser.add_argument("--machine-type", default="e2-standard-4", help="GCE machine type")
-    create_parser.add_argument("--expose-method", choices=["pinggy", "loadbalancer"], default="pinggy",
+    create_parser.add_argument("--expose-method", choices=["pinggy", "loadbalancer"], default="loadbalancer",
                                help="How to expose cluster")
     create_parser.add_argument("--pinggy-url", help="Pinggy persistent URL")
     create_parser.add_argument("--pinggy-token", help="Pinggy auth token")
