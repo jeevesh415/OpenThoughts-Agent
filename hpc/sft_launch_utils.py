@@ -115,6 +115,7 @@ def maybe_compute_gradient_accumulation(base_config: dict, exp_args: dict) -> di
 
     base_config["gradient_accumulation_steps"] = gradient_accumulation_steps
     base_config["per_device_train_batch_size"] = per_device_train_batch_size
+    # base_config["global_batch_size"] = global_batch_size
     print(f"\nCalculated based on {num_nodes} nodes, {num_gpus} GPUs per node, and global batch size {global_batch_size}:")
     print(f"data_parallel_replicas: {data_parallel_replicas}")
     print(f"per_device_train_batch_size: {per_device_train_batch_size}")
@@ -583,16 +584,20 @@ def construct_sft_sbatch_script(exp_args: dict, hpc) -> str:
         cuda_setup = """# CUDA path detection (handled by Python runner)
 # Additional CUDA setup can be done in SFTJobRunner._setup_environment()"""
 
+    srun_prefix = f"srun --nodes={num_nodes}"
     # Generate srun command based on launcher
     # Use --nodes and --ntasks-per-node=1 to ensure one process per node for multi-node training
     # Each node then launches its own accelerate processes for local GPUs
     srun_base = "srun --nodes=$SLURM_JOB_NUM_NODES --ntasks-per-node=1"
     if hpc.needs_ssh_tunnel:
         # JSC clusters use proxychains4 for internet access
-        srun_command = f'{srun_base} $PROXY_CMD python -m hpc.sft_launch_utils --config "{config_path}"'
-    else:
-        srun_command = f'{srun_base} python -m hpc.sft_launch_utils --config "{config_path}"'
+        srun_prefix += " $PROXY_CMD"
+    if os.environ.get("IMAGE"):
+        print(f"Using Apptainer image: {os.environ['IMAGE']}")
+        srun_prefix += f' apptainer exec --nv {os.environ["IMAGE"]}'
 
+    cmd = f'python -m hpc.sft_launch_utils --config "{config_path}"'
+    srun_command = f"{srun_prefix} bash -c '{cmd}'"
     substitutions = {
         "time_limit": exp_args.get("time_limit") or "24:00:00",
         "num_nodes": str(num_nodes),

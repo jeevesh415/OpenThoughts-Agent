@@ -259,10 +259,10 @@ class HPC(BaseModel):
         for key, value in {**self.env_vars, **self.library_paths}.items():
             env_parts.append(f"{key}={value}")
         # Add common paths
-        env_parts.append("PATH=$PATH")
-        env_parts.append("LD_LIBRARY_PATH=${LD_LIBRARY_PATH:-}")
-        env_parts.append("PYTHONPATH=${PYTHONPATH:-}")
-        env_parts.append("HF_HOME=${HF_HOME:-}")
+        # env_parts.append("PATH=$PATH")
+        # env_parts.append("LD_LIBRARY_PATH=${LD_LIBRARY_PATH:-}")
+        # env_parts.append("PYTHONPATH=${PYTHONPATH:-}")
+        # env_parts.append("HF_HOME=${HF_HOME:-}")
         return ",".join(env_parts)
 
     def get_ray_env_vars(self) -> str:
@@ -438,23 +438,23 @@ PCEOF
     export PROXYCHAINS_SOCKS5_HOST="${NODE_IP}"
     export PROXYCHAINS_SOCKS5_PORT="${TUNNEL_PORT}"
 
-    if [[ "$PROXYCHAINS_MODE" == "binary" ]]; then
-        # Binary wrapper approach (Jupiter ARM GH200)
-        # Ray workers will use: proxychains4 -f $PROXYCHAINS_CONF_FILE ray start ...
-        export PROXYCHAINS_BINARY="$PROXYCHAINS_BIN"
-        echo "[proxy] ✓ PROXYCHAINS_BINARY=$PROXYCHAINS_BIN"
-        echo "[proxy] ✓ PROXYCHAINS_CONF_FILE=$CFG_PATH"
-        echo "[proxy] ✓ PROXYCHAINS_SOCKS5_HOST=${NODE_IP} (accessible from worker nodes)"
-        echo "[proxy] ✓ PROXYCHAINS_SOCKS5_PORT=${TUNNEL_PORT}"
-    else
-        # LD_PRELOAD approach (Jureca, Juwels)
-        # Ray workers inherit proxy via LD_PRELOAD environment variable
-        export LD_PRELOAD="$PROXYCHAINS_LIB"
-        echo "[proxy] ✓ LD_PRELOAD set to $PROXYCHAINS_LIB"
-        echo "[proxy] ✓ PROXYCHAINS_CONF_FILE=$CFG_PATH"
-        echo "[proxy] ✓ PROXYCHAINS_SOCKS5_HOST=${NODE_IP} (accessible from worker nodes)"
-        echo "[proxy] ✓ PROXYCHAINS_SOCKS5_PORT=${TUNNEL_PORT}"
-    fi
+    # if [[ "$PROXYCHAINS_MODE" == "binary" ]]; then
+    #     # Binary wrapper approach (Jupiter ARM GH200)
+    #     # Ray workers will use: proxychains4 -f $PROXYCHAINS_CONF_FILE ray start ...
+    #     export PROXYCHAINS_BINARY="$PROXYCHAINS_BIN"
+    #     echo "[proxy] ✓ PROXYCHAINS_BINARY=$PROXYCHAINS_BIN"
+    #     echo "[proxy] ✓ PROXYCHAINS_CONF_FILE=$CFG_PATH"
+    #     echo "[proxy] ✓ PROXYCHAINS_SOCKS5_HOST=${NODE_IP} (accessible from worker nodes)"
+    #     echo "[proxy] ✓ PROXYCHAINS_SOCKS5_PORT=${TUNNEL_PORT}"
+    # else
+    #     # LD_PRELOAD approach (Jureca, Juwels)
+    #     # Ray workers inherit proxy via LD_PRELOAD environment variable
+    #     export LD_PRELOAD="$PROXYCHAINS_LIB"
+    #     echo "[proxy] ✓ LD_PRELOAD set to $PROXYCHAINS_LIB"
+    #     echo "[proxy] ✓ PROXYCHAINS_CONF_FILE=$CFG_PATH"
+    #     echo "[proxy] ✓ PROXYCHAINS_SOCKS5_HOST=${NODE_IP} (accessible from worker nodes)"
+    #     echo "[proxy] ✓ PROXYCHAINS_SOCKS5_PORT=${TUNNEL_PORT}"
+    # fi
 
     # ============================================================================
     # Daytona/aiohttp timeout and retry settings
@@ -699,7 +699,7 @@ jupiter = HPC(
     gpu_directive_format="--gres=gpu:{n}",
     # Modules: nvidia-compilers includes CUDA toolkit, nvcc, cuBLAS, etc.
     # Note: GCC is auto-loaded; NVHPC is deprecated in favor of nvidia-compilers
-    modules=["nvidia-compilers/25.9-CUDA-13"],
+    # modules=["nvidia-compilers/25.9-CUDA-13"],
     env_vars={
         "WANDB_MODE": "offline",  # Compute nodes have no internet
         # Force GLOO and NCCL to use IPv4 (IPv6 doesn't work on Jupiter compute nodes)
@@ -721,7 +721,7 @@ jupiter = HPC(
     # SSH tunnel for internet access (shared proxy 10.14.0.53 not reachable from Jupiter network)
     needs_ssh_tunnel=True,
     # Use wrapped binary approach for proxychains (LD_PRELOAD doesn't work reliably on ARM GH200)
-    proxychains_binary="/e/scratch/jureap59/feuer1/proxychains-ng-aarch64/bin/proxychains4",
+    proxychains_binary="/e/home/jusers/nezhurina1/jupiter/.local/bin/proxychains4",
     # JSC-specific setup (disable core dumps to save disk space)
     pre_run_commands=["ulimit -c 0"],
     # Job scaling
