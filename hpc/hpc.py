@@ -746,6 +746,9 @@ jupiter = HPC(
     num_nodes_slow=1,
     num_nodes_default=4,
     num_nodes_fast=8,
+    # Exclude rack 031 - nodes are on 10.128.26.x subnet which can't communicate
+    # with 10.128.25.x subnet nodes (racks 026-030) causing Ray cluster failures
+    node_exclusion_list="jpbo-031-[01-48]",
 )
 
 juwels = HPC(
