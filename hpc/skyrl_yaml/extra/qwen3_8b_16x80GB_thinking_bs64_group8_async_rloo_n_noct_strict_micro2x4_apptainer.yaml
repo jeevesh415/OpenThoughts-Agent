@@ -40,7 +40,7 @@ terminal_bench:
   harbor:
     # Agent settings
     name: terminus-2
-    max_episodes: 64
+    max_episodes: 999999
     enable_summarize: false
     store_all_messages: true
     # Disable episode-* folder creation to reduce disk I/O (SkyRL uses TrialResult directly)

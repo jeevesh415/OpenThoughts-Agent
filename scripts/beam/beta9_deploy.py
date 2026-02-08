@@ -941,6 +941,13 @@ def wait_for_gateway_ready(
 
                         if "true" in ready_result.stdout.lower():
                             logger.info("Gateway pod is running and ready")
+
+                            # Bootstrap workspace immediately to allow workers to register
+                            # This creates the admin workspace via Authorize before workers give up
+                            if not bootstrap_workspace_via_port_forward(config):
+                                logger.warning("Workspace bootstrap failed, workers may not register correctly")
+                                # Continue anyway - validation will retry
+
                             return True
                         else:
                             logger.debug(f"Gateway pod running but not ready yet")
@@ -951,6 +958,82 @@ def wait_for_gateway_ready(
 
     logger.error(f"Gateway did not become ready within {timeout} seconds")
     return False
+
+
+def bootstrap_workspace_via_port_forward(config: Beta9Config, timeout: int = 60) -> bool:
+    """Bootstrap workspace by calling Authorize via port-forward.
+
+    This creates the admin workspace immediately after gateway becomes ready,
+    allowing workers to register successfully.
+
+    Args:
+        config: Beta9 configuration.
+        timeout: Timeout in seconds for the bootstrap operation.
+
+    Returns:
+        True if workspace was bootstrapped successfully.
+    """
+    import socket
+    import subprocess
+    import time
+
+    # Find a free local port
+    def find_free_port():
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind(('', 0))
+            return s.getsockname()[1]
+
+    local_port = find_free_port()
+    logger.info(f"Bootstrapping workspace via port-forward (localhost:{local_port} -> gateway:1993)")
+
+    # Start port-forward in background
+    port_forward_cmd = [
+        "kubectl", "port-forward",
+        "-n", config.namespace,
+        "svc/beta9-gateway",
+        f"{local_port}:1993",
+    ]
+
+    port_forward_proc = subprocess.Popen(
+        port_forward_cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+    try:
+        # Wait for port-forward to be ready
+        time.sleep(3)
+
+        if port_forward_proc.poll() is not None:
+            stderr = port_forward_proc.stderr.read().decode() if port_forward_proc.stderr else ""
+            logger.warning(f"Port-forward failed to start: {stderr}")
+            return False
+
+        # Import and call the validation module's token getter
+        from scripts.beam.validate_cluster import get_or_create_token
+
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            try:
+                token = get_or_create_token("localhost", local_port, force_refresh=True)
+                if token:
+                    logger.info("Workspace bootstrapped successfully - workers can now register")
+                    return True
+            except Exception as e:
+                logger.debug(f"Authorize attempt failed: {e}")
+
+            time.sleep(2)
+
+        logger.warning("Failed to bootstrap workspace within timeout")
+        return False
+
+    finally:
+        # Clean up port-forward
+        port_forward_proc.terminate()
+        try:
+            port_forward_proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            port_forward_proc.kill()
 
 
 def log_mounted_config(config: Beta9Config) -> None:

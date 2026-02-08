@@ -70,7 +70,7 @@ terminal_bench:
     # Agent name - must be a valid Harbor AgentName (e.g., terminus-2, oracle)
     name: terminus-2
     # Max agent-environment turns before Harbor forces termination
-    max_episodes: 64
+    max_episodes: 999999
     # Disable summarization, consistent with prior RL work
     enable_summarize: false
     # Store full message history for trajectory reconstruction

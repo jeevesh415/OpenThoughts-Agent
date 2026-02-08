@@ -50,7 +50,7 @@ terminal_bench:
     # Agent name - OpenHands agent
     name: openhands
     # Max agent-environment turns before Harbor forces termination
-    max_episodes: 64
+    max_episodes: 999999
 
     # OpenHands-specific kwargs
     # reasoning_effort: Reasoning effort level (low, medium, high)
