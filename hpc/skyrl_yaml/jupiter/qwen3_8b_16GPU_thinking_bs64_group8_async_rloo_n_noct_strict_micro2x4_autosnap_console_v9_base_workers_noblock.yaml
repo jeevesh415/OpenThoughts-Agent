@@ -151,8 +151,6 @@ trainer:
   hf_hub_repo_id: null
   hf_hub_private: false
   hf_hub_revision: main
-  # vLLM stats interval in steps
-  vllm_stats_interval: 1
 
   # Database registration (auto-registers trained model to Supabase)
   # Requires KEYS env var pointing to Supabase credentials file
@@ -226,6 +224,9 @@ generator:
   async_engine: true
   batched: false
   enable_http_endpoint: true
+
+  # vLLM stats logging interval (steps)
+  vllm_stats_interval: 1
 
   append_eos_token_after_stop_str_in_multi_turn: true
   max_turns: 999999
