@@ -443,12 +443,13 @@ localnet 127.0.0.1/255.255.255.255
 localnet 10.0.0.0/255.0.0.0
 localnet 172.16.0.0/255.240.0.0
 localnet 192.168.0.0/255.255.0.0
+localnet 169.254.0.0/255.255.0.0
 [ProxyList]
 socks5 ${NODE_IP} ${TUNNEL_PORT}
 PCEOF
 
     echo "[proxy] ✓ Generated proxychains config at $CFG_PATH"
-    echo "[proxy]   - Internal traffic (10.x.x.x, 172.x.x.x) → DIRECT"
+    echo "[proxy]   - Internal traffic (10.x.x.x, 172.x.x.x, 169.254.x.x) → DIRECT"
     echo "[proxy]   - External traffic (internet) → PROXY via tunnel"
 
     # ============================================================================
