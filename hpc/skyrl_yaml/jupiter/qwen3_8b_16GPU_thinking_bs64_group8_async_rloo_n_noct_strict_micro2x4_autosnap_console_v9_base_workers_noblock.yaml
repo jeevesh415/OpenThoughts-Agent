@@ -55,6 +55,7 @@ terminal_bench:
     extra_body:
       chat_template_kwargs:
         enable_thinking: true
+      response_prefix: "<think>\n\n</think>\n\n{\n  \"analysis\": \""
 
     # Timeout settings
     override_timeout_sec: 900
@@ -200,7 +201,7 @@ trainer:
   fully_async:
     max_staleness_steps: 32
     # Large worker count
-    num_parallel_generation_workers: 320
+    num_parallel_generation_workers: 1536
 
 # Generator configuration
 generator:

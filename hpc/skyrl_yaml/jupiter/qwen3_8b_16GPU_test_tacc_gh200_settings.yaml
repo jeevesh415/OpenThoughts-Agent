@@ -29,10 +29,12 @@ terminal_bench:
     record_terminal_session: false
     enable_pane_logging: false
     strict_json_parser: true
+    # Interleaved Thinking Settings
     interleaved_thinking: true
     extra_body:
       chat_template_kwargs:
         enable_thinking: true
+      response_prefix: "<think>\n\n</think>\n\n{\n  \"analysis\": \""
     override_timeout_sec: 900
     override_cpus: 1
     override_memory_mb: 2048
@@ -133,7 +135,7 @@ trainer:
 
   fully_async:
     max_staleness_steps: 32
-    num_parallel_generation_workers: 320
+    num_parallel_generation_workers: 1536
 
 generator:
   backend: vllm
