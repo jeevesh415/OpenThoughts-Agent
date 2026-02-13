@@ -59,8 +59,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument(
         "--max-new-tokens",
         type=int,
-        default=4096,
-        help="Max new tokens to generate per prompt (default: 4096)",
+        default=2048,
+        help="Max new tokens to generate per prompt (default: 2048)",
     )
     p.add_argument(
         "--output",
@@ -87,6 +87,30 @@ def parse_args() -> argparse.Namespace:
         default="bfloat16",
         choices=["float16", "bfloat16", "float32", "auto"],
         help="Model dtype (default: bfloat16)",
+    )
+    # Sampling parameters — defaults match SkyRL RL rollout config
+    p.add_argument(
+        "--temperature",
+        type=float,
+        default=1.0,
+        help="Sampling temperature (default: 1.0, matching RL rollout)",
+    )
+    p.add_argument(
+        "--top-p",
+        type=float,
+        default=0.95,
+        help="Nucleus sampling top-p (default: 0.95, matching RL rollout)",
+    )
+    p.add_argument(
+        "--top-k",
+        type=int,
+        default=-1,
+        help="Top-k sampling, -1 to disable (default: -1, matching RL rollout)",
+    )
+    p.add_argument(
+        "--greedy",
+        action="store_true",
+        help="Use greedy decoding (overrides temperature/top_p/top_k)",
     )
     return p.parse_args()
 
@@ -171,9 +195,14 @@ def _generate_once(
     max_new_tokens: int,
     enable_thinking: bool,
     label: str,
+    temperature: float = 1.0,
+    top_p: float = 0.95,
+    top_k: int = -1,
+    greedy: bool = False,
 ):
     """Run a single generation pass and return result dict."""
     import torch
+    from transformers import GenerationConfig
 
     # Some tokenizers don't support enable_thinking; fall back gracefully.
     try:
@@ -203,12 +232,28 @@ def _generate_once(
     input_len = inputs["input_ids"].shape[-1]
     print(f"  [{label}] Input tokens: {input_len}")
 
+    if greedy:
+        gen_config = GenerationConfig(
+            max_new_tokens=max_new_tokens,
+            do_sample=False,
+        )
+    else:
+        gen_kwargs = {
+            "max_new_tokens": max_new_tokens,
+            "do_sample": True,
+            "temperature": temperature,
+            "top_p": top_p,
+        }
+        # top_k=-1 means disabled; only set if actually limiting
+        if top_k > 0:
+            gen_kwargs["top_k"] = top_k
+        gen_config = GenerationConfig(**gen_kwargs)
+
     t0 = time.time()
     with torch.no_grad():
         outputs = model.generate(
             **inputs,
-            max_new_tokens=max_new_tokens,
-            do_sample=False,
+            generation_config=gen_config,
         )
     elapsed = time.time() - t0
 
@@ -232,6 +277,10 @@ def run_inference(
     prompts: list[dict],
     max_new_tokens: int,
     dtype: str,
+    temperature: float = 1.0,
+    top_p: float = 0.95,
+    top_k: int = -1,
+    greedy: bool = False,
 ) -> list[dict]:
     """Run inference on each prompt with both thinking=True and thinking=False."""
     from transformers import AutoTokenizer, AutoModelForCausalLM
@@ -255,11 +304,7 @@ def run_inference(
 
         print(f"\n[probe] Prompt {i + 1}/{len(prompts)} ({task})...")
 
-        prompt_content = (
-            messages[0]["content"][:500] + "..."
-            if len(messages[0]["content"]) > 500
-            else messages[0]["content"]
-        )
+        prompt_content = messages[0]["content"]
 
         result_entry = {
             "row_index": prompt_info["row_index"],
@@ -267,10 +312,14 @@ def run_inference(
             "prompt_content": prompt_content,
         }
 
+        sampling_kwargs = dict(
+            temperature=temperature, top_p=top_p, top_k=top_k, greedy=greedy,
+        )
+
         # Run with thinking enabled
         thinking_on = _generate_once(
             model, tokenizer, messages, max_new_tokens,
-            enable_thinking=True, label="thinking=ON",
+            enable_thinking=True, label="thinking=ON", **sampling_kwargs,
         )
         if thinking_on is not None:
             result_entry["thinking_enabled"] = thinking_on
@@ -280,7 +329,7 @@ def run_inference(
         # Run with thinking disabled
         thinking_off = _generate_once(
             model, tokenizer, messages, max_new_tokens,
-            enable_thinking=False, label="thinking=OFF",
+            enable_thinking=False, label="thinking=OFF", **sampling_kwargs,
         )
         if thinking_off is not None:
             result_entry["thinking_disabled"] = thinking_off
@@ -320,11 +369,20 @@ def main() -> None:
         print("[probe] No prompts extracted, exiting.")
         sys.exit(1)
 
+    sampling_mode = "greedy" if args.greedy else "sampling"
+    print(f"[probe] Generation: {sampling_mode}"
+          + (f" (temperature={args.temperature}, top_p={args.top_p}, top_k={args.top_k})"
+             if not args.greedy else ""))
+
     results = run_inference(
         args.model,
         prompts,
         args.max_new_tokens,
         args.dtype,
+        temperature=args.temperature,
+        top_p=args.top_p,
+        top_k=args.top_k,
+        greedy=args.greedy,
     )
 
     output = {
@@ -333,6 +391,12 @@ def main() -> None:
         "num_prompts": len(results),
         "max_new_tokens": args.max_new_tokens,
         "dtype": args.dtype,
+        "sampling": {
+            "mode": sampling_mode,
+            "temperature": args.temperature,
+            "top_p": args.top_p,
+            "top_k": args.top_k,
+        } if not args.greedy else {"mode": "greedy"},
         "results": results,
     }
 
