@@ -79,7 +79,7 @@ trainer:
   strategy: fsdp2
   algorithm:
     advantage_estimator: rloo_n
-    use_kl_loss: true
+    use_kl_loss: false
     kl_loss_coef: 0.01
     eps_clip_low: 0.2
     eps_clip_high: 0.2
@@ -113,9 +113,9 @@ trainer:
   policy:
     optimizer_config:
       lr: 1e-6
-      weight_decay: 0.01
+      weight_decay: 0.0
       adam_betas: [0.9, 0.999]
-      max_grad_norm: 1.0
+      max_grad_norm: 5.0
     fsdp_config:
       cpu_offload: false
       reshard_after_forward: false
@@ -148,13 +148,12 @@ generator:
   n_samples_per_prompt: 8
   eval_n_samples_per_prompt: 8
 
-  # TEST CHANGE: Even lower GPU memory utilization
-  gpu_memory_utilization: 0.80
+  gpu_memory_utilization: 0.90
 
-  max_num_seqs: 40
-  max_num_batched_tokens: 8192
+  max_num_seqs: 32
+  max_num_batched_tokens: 65536
 
-  enable_prefix_caching: false
+  enable_prefix_caching: true
   enable_chunked_prefill: true
 
   run_engines_locally: true

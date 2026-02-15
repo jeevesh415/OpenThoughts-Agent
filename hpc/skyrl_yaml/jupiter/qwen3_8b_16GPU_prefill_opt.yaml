@@ -1,34 +1,3 @@
-# SkyRL Configuration: Qwen3 8B on 16x80GB GPUs - Prefill-Optimized Variant
-# Based on: qwen3_8b_16GPU_base.yaml
-#
-# Changes from base (addressing chronic inference engine underutilization):
-#
-#   1. gpu_memory_utilization: 0.65 -> 0.90
-#      Base used 0.65 (~62GB), leaving only ~46GB for KV cache after model weights.
-#      At ~1.1MB/token for Qwen3-8B KV, that's ~40k tokens total — only ~1250
-#      tokens/seq at max_num_seqs=32. Multi-turn agents easily exceed this,
-#      triggering preemption/recompute. 0.90 gives ~70GB for KV (~63k tokens).
-#
-#   2. enable_prefix_caching: false -> true
-#      Multi-turn agents re-send the full conversation each call. Without prefix
-#      caching, every call re-prefills the ENTIRE history from scratch. A turn-15
-#      agent with 20k tokens pays 20k prefill every time, even though 19k tokens
-#      are identical to the previous call. Prefix caching eliminates redundant
-#      prefill and dramatically reduces token budget pressure.
-#
-#   3. max_num_batched_tokens: 32768 -> 65536
-#      With chunked prefill, this is the per-step token budget. A single 25k-token
-#      prefill nearly exhausts a 32k budget, starving decode for all other
-#      in-flight requests. Doubling the budget lets the scheduler interleave
-#      long prefills with decode without starving other sequences.
-#
-#   4. n_concurrent_trials: 256 -> 192
-#      With 8 engines x 32 max_num_seqs = 256 slots, running 256 concurrent
-#      agents means zero headroom. Reducing to 192 (24/engine) gives the
-#      scheduler room to admit and prefill new sequences without preempting
-#      existing ones. Combined with prefix caching, actual throughput should
-#      increase despite fewer concurrent agents.
-
 # SkyRL entrypoint module
 entrypoint: examples.terminal_bench.entrypoints.main_tbench
 
@@ -100,7 +69,7 @@ trainer:
   strategy: fsdp2
   algorithm:
     advantage_estimator: rloo_n
-    use_kl_loss: true
+    use_kl_loss: false
     kl_loss_coef: 0.01
     eps_clip_low: 0.2
     eps_clip_high: 0.2
@@ -134,9 +103,9 @@ trainer:
   policy:
     optimizer_config:
       lr: 1e-6
-      weight_decay: 0.01
+      weight_decay: 0.0
       adam_betas: [0.9, 0.999]
-      max_grad_norm: 1.0
+      max_grad_norm: 5.0
     fsdp_config:
       cpu_offload: false
       reshard_after_forward: false
@@ -169,14 +138,11 @@ generator:
   n_samples_per_prompt: 8
   eval_n_samples_per_prompt: 8
 
-  # CHANGED: Restore higher GPU memory for more KV cache capacity
   gpu_memory_utilization: 0.90
 
   max_num_seqs: 32
-  # CHANGED: Double token budget to reduce prefill starvation
   max_num_batched_tokens: 65536
 
-  # CHANGED: Enable prefix caching to avoid redundant multi-turn prefill
   enable_prefix_caching: true
   enable_chunked_prefill: true
 
