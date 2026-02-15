@@ -126,6 +126,102 @@ def parse_metrics_block(block: str) -> dict[str, Any] | None:
             return None
 
 
+def extract_batch_errors(log_content: str) -> dict[int, dict[str, float]]:
+    """
+    Extract per-step batch error statistics from log content.
+
+    Parses "Exception breakdown" and "Batch generation complete" lines,
+    groups them by training step (using "Step N:" markers), and returns
+    averaged error counts per step.
+
+    Returns:
+        {step_number: {"AgentTimeoutError": avg_per_batch,
+                        "ContextLengthExceededError": avg_per_batch,
+                        "total_batches": N, "total_failed": M, ...}}
+    """
+    content = strip_ansi(log_content)
+
+    # Remove Ray actor prefix from each line
+    lines = content.split('\n')
+    cleaned_lines = []
+    for line in lines:
+        match = re.match(r'\([^)]+\)\s*(.*)', line)
+        cleaned_lines.append(match.group(1) if match else line)
+
+    # Walk through lines, track current step, collect events
+    step_marker_re = re.compile(r'Step (\d+):')
+    exception_re = re.compile(r'Exception breakdown: (\{.*\})')
+    batch_re = re.compile(
+        r'Batch generation complete: (\d+)/(\d+) successful, '
+        r'(\d+) failed instances, (\d+) masked'
+    )
+
+    # Events before step 1's marker belong to step 1
+    current_step = 1
+    # {step: {"batches": [...], "exceptions": [...]}}
+    step_events: dict[int, dict[str, list]] = defaultdict(lambda: {"batches": [], "exceptions": []})
+
+    for line in cleaned_lines:
+        sm = step_marker_re.search(line)
+        if sm:
+            current_step = int(sm.group(1))
+            continue
+
+        em = exception_re.search(line)
+        if em:
+            try:
+                import ast
+                exc_dict = ast.literal_eval(em.group(1))
+                step_events[current_step]["exceptions"].append(exc_dict)
+            except Exception:
+                pass
+            continue
+
+        bm = batch_re.search(line)
+        if bm:
+            step_events[current_step]["batches"].append({
+                "successful": int(bm.group(1)),
+                "total": int(bm.group(2)),
+                "failed": int(bm.group(3)),
+                "masked": int(bm.group(4)),
+            })
+
+    # Aggregate per step
+    result = {}
+    for step, events in step_events.items():
+        batches = events["batches"]
+        exceptions = events["exceptions"]
+        n_batches = len(batches)
+        if n_batches == 0:
+            continue
+
+        # Sum up all exception types across batches in this step
+        exc_totals: dict[str, int] = defaultdict(int)
+        for exc in exceptions:
+            for exc_type, count in exc.items():
+                exc_totals[exc_type] += count
+
+        total_failed = sum(b["failed"] for b in batches)
+        total_masked = sum(b["masked"] for b in batches)
+        total_successful = sum(b["successful"] for b in batches)
+        total_instances = sum(b["total"] for b in batches)
+
+        agg: dict[str, float] = {
+            "batch_errors/total_batches": n_batches,
+            "batch_errors/total_instances": total_instances,
+            "batch_errors/total_successful": total_successful,
+            "batch_errors/total_failed": total_failed,
+            "batch_errors/total_masked": total_masked,
+        }
+        for exc_type, total in exc_totals.items():
+            agg[f"batch_errors/avg_{exc_type}"] = total / n_batches
+            agg[f"batch_errors/total_{exc_type}"] = total
+
+        result[step] = agg
+
+    return result
+
+
 def extract_vllm_metrics(log_content: str) -> list[dict[str, Any]]:
     """
     Extract vLLM stat logger metrics from log content.
@@ -257,6 +353,13 @@ def process_log_file(log_path: Path) -> tuple[str, list[dict[str, Any]], list[di
 
     metrics = extract_metrics_blocks(content)
     vllm_metrics = extract_vllm_metrics(content)
+    batch_errors = extract_batch_errors(content)
+
+    # Merge batch error stats into training metrics
+    for m in metrics:
+        step = m.get('trainer/global_step')
+        if step is not None and step in batch_errors:
+            m.update(batch_errors[step])
 
     # Extract a short name from the filename
     name = log_path.stem
@@ -505,31 +608,62 @@ def generate_markdown_report(
 
 
 def generate_reward_plot(all_data: dict[str, list[dict[str, Any]]], output_path: Path) -> None:
-    """Generate a plot of average reward vs training step for each log."""
-    fig, ax = plt.subplots(figsize=(10, 6))
+    """Generate a plot of average reward and batch errors vs training step."""
+    fig, (ax_reward, ax_timeout, ax_ctx) = plt.subplots(3, 1, figsize=(10, 12), sharex=True)
 
+    colors = {}
     for log_name, metrics in all_data.items():
         if not metrics:
             continue
 
         steps = [m.get('trainer/global_step', i) for i, m in enumerate(metrics)]
         rewards = [m.get('reward/avg_raw_reward', 0) for m in metrics]
+        timeouts = [m.get('batch_errors/avg_AgentTimeoutError', 0) for m in metrics]
+        ctx_errs = [m.get('batch_errors/avg_ContextLengthExceededError', 0) for m in metrics]
 
         if not steps:
             continue
 
-        # Plot raw data as faint line, EMA as bold
+        single = len(steps) == 1
+        marker = 'o' if single else None
+        markersize = 8 if single else None
+
+        # Reward subplot
         raw_series = pd.Series(rewards, index=steps)
         ema_series = raw_series.ewm(span=5).mean()
+        color = ax_reward.plot(steps, ema_series.values, label=log_name, linewidth=2,
+                               marker=marker, markersize=markersize)[0].get_color()
+        ax_reward.plot(steps, rewards, color=color, alpha=0.2, linewidth=1)
+        colors[log_name] = color
 
-        color = ax.plot(steps, ema_series.values, label=log_name, linewidth=2)[0].get_color()
-        ax.plot(steps, rewards, color=color, alpha=0.2, linewidth=1)
+        # Timeout errors subplot
+        ts = pd.Series(timeouts, index=steps)
+        ts_ema = ts.ewm(span=5).mean()
+        ax_timeout.plot(steps, ts_ema.values, label=log_name, linewidth=2, color=color,
+                        marker=marker, markersize=markersize)
+        ax_timeout.plot(steps, timeouts, color=color, alpha=0.2, linewidth=1)
 
-    ax.set_xlabel('Training Step')
-    ax.set_ylabel('Avg Raw Reward')
-    ax.set_title('Average Reward vs Training Step')
-    ax.legend(loc='best', fontsize='small')
-    ax.grid(True, alpha=0.3)
+        # Context length errors subplot
+        cs = pd.Series(ctx_errs, index=steps)
+        cs_ema = cs.ewm(span=5).mean()
+        ax_ctx.plot(steps, cs_ema.values, label=log_name, linewidth=2, color=color,
+                    marker=marker, markersize=markersize)
+        ax_ctx.plot(steps, ctx_errs, color=color, alpha=0.2, linewidth=1)
+
+    ax_reward.set_ylabel('Avg Raw Reward')
+    ax_reward.set_title('Average Reward vs Training Step')
+    ax_reward.legend(loc='best', fontsize='small')
+    ax_reward.grid(True, alpha=0.3)
+
+    ax_timeout.set_ylabel('Avg Timeout Errors / Batch')
+    ax_timeout.set_title('AgentTimeoutError per Batch (averaged per step)')
+    ax_timeout.grid(True, alpha=0.3)
+
+    ax_ctx.set_xlabel('Training Step')
+    ax_ctx.set_ylabel('Avg Context Length Errors / Batch')
+    ax_ctx.set_title('ContextLengthExceededError per Batch (averaged per step)')
+    ax_ctx.grid(True, alpha=0.3)
+
     fig.tight_layout()
     fig.savefig(output_path, dpi=150)
     plt.close(fig)

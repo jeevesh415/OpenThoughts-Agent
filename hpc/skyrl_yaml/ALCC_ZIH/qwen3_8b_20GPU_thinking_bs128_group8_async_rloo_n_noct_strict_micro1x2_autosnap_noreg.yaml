@@ -1,27 +1,23 @@
 # SkyRL Configuration: Qwen3 8B on 20 GPUs (5 nodes x 4 GPUs) - RLOO-N + Strict JSON + Auto Snapshot
-# Based on: qwen3_8b_16x80GB_thinking_bs64_group8_async_rloo_n_noct_strict_micro1x4_autosnap.yaml
+# Based on: qwen3_8b_20GPU_thinking_bs64_group8_async_rloo_n_noct_strict_micro1x4_autosnap.yaml
+#
+# BS128 GROUP16 NOREG VARIANT:
+#   - train_batch_size: 128 (2x effective batch size)
+#   - policy_mini_batch_size: 128
+#   - n_samples_per_prompt: 16 (2x group size for better RLOO-N variance reduction)
+#   - With micro_train_batch_size_per_gpu: 1, accumulation_steps = 128 / (1 × 8) = 16
+#   - No regularization: KL loss disabled, weight_decay=0, no grad clipping
 #
 # 20 GPU VARIANT:
 #   - Total GPUs: 20 (5 nodes x 4 GPUs)
 #   - Inference engines: 12 (dedicated GPUs)
 #   - Policy/Reference: 8 shared GPUs (colocated via async RLOO-N)
-#   - micro_train_batch_size_per_gpu: 1 (from base micro1x4 config)
-#   - micro_forward_batch_size_per_gpu: 4
-#
-# Inference settings from v2_maxconcurrent variant:
-#   - num_parallel_generation_workers: 768 (increased from 256)
-#   - max_staleness_steps: 12 (increased from 8)
-#   - num_inference_engines: 12 (for 20 total GPUs)
-#
-# AUTO SNAPSHOT: Uses Daytona auto_snapshot feature to reduce rate limits
-#   - auto_snapshot: true (automatically create/reuse snapshots based on Dockerfile hash)
-#   - Snapshot naming: harbor__<hash[:12]>__snapshot
 #
 # Usage:
 #   python -m hpc.launch \
 #       --job_type rl \
-#       --rl_config qwen3_8b_20GPU_thinking_bs64_group8_async_rloo_n_noct_strict_micro1x4_autosnap.yaml \
-#       --job_name qwen3_8b_agentic_async_rloo_n_strict_autosnap_20gpu \
+#       --rl_config qwen3_8b_20GPU_thinking_bs128_group16_async_rloo_n_noct_strict_micro1x4_autosnap.yaml \
+#       --job_name qwen3_8b_bs128_group16_20gpu \
 #       --train_data '["mlfoundations-dev/your-dataset"]' \
 #       --model_path Qwen/Qwen3-8B \
 #       --num_nodes 5
@@ -91,7 +87,7 @@ terminal_bench:
       - VerifierOutputParseError
       - ContextLengthExceededError
 
-    # Orchestrator settings (v2_maxconcurrent uses 512)
+    # Orchestrator settings
     n_concurrent_trials: 384
 
     # Logging settings
@@ -138,13 +134,12 @@ trainer:
   epochs: 10
   update_epochs_per_batch: 1
 
-  # Batch sizes
-  train_batch_size: 64
-  policy_mini_batch_size: 64
-  eval_batch_size: 64
+  # Batch sizes (BS128 variant)
+  train_batch_size: 128
+  policy_mini_batch_size: 128
+  eval_batch_size: 128
 
-  # Micro batch sizes (micro1x4 variant)
-  micro_forward_batch_size_per_gpu: 4
+  micro_forward_batch_size_per_gpu: 2
   micro_train_batch_size_per_gpu: 1
 
   max_prompt_length: 999999

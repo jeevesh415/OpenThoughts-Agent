@@ -55,7 +55,7 @@ terminal_bench:
         enable_thinking: true
       response_prefix: "<think>\n\n</think>\n\n{\n  \"analysis\": \""
     # Timeout settings
-    override_timeout_sec: 900
+    override_timeout_sec: 1500
 
     # Environment settings
     override_cpus: 1
