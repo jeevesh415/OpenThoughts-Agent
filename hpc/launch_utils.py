@@ -982,6 +982,12 @@ def derive_default_job_name(cli_args: Mapping[str, Any]) -> str:
             job_name_suffix = "_3B"
         elif value_str == "Qwen/Qwen2.5-1.5B-Instruct":
             job_name_suffix = "_1.5B"
+        elif key == "dataset" and "," in value_str:
+            # Multi-dataset: include all dataset names in the job name
+            for ds in value_str.split(","):
+                ds_name = ds.strip().split("/")[-1]
+                if ds_name:
+                    job_name_components.append(ds_name)
         else:
             job_name_components.append(value_str.split("/")[-1])
 
