@@ -877,6 +877,7 @@ capella = HPC(
         "NCCL_DEBUG": "INFO",
         "NCCL_PROTO": "simple",
         "NCCL_IB_TIMEOUT": "23",
+        "NCCL_IB_RETRY_CNT": "13",
         "FI_EFA_FORK_SAFE": "1",
         "FI_LOG_LEVEL": "1",
         "FI_EFA_USE_DEVICE_RDMA": "1",
