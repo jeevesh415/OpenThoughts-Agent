@@ -889,6 +889,8 @@ capella = HPC(
     num_nodes_slow=1,
     num_nodes_default=1,
     num_nodes_fast=4,
+    # Exclude nodes with flaky SLURM prologs causing socket timeouts on multi-node jobs
+    node_exclusion_list="c69,c76",
     # ZIH license requirements
     extra_sbatch_directives=["#SBATCH --licenses=walrus:1,octopus:1,narwhal:1,cat:1"],
 )
