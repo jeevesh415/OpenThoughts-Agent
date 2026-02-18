@@ -148,10 +148,9 @@ generator:
   n_samples_per_prompt: 8
   eval_n_samples_per_prompt: 8
 
-  # TEST CHANGE: Even lower GPU memory utilization
-  gpu_memory_utilization: 0.85
+  gpu_memory_utilization: 0.90
 
-  max_num_seqs: 32
+  max_num_seqs: 24
   max_num_batched_tokens: 65536
 
   enable_prefix_caching: true
