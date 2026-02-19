@@ -1,32 +1,3 @@
-# SkyRL Configuration: Qwen3 8B on 20 GPUs (5 nodes x 4 GPUs) - RLOO-N + Strict JSON + Auto Snapshot
-# Based on: qwen3_8b_16x80GB_thinking_bs64_group8_async_rloo_n_noct_strict_micro1x4_autosnap.yaml
-#
-# 20 GPU VARIANT:
-#   - Total GPUs: 20 (5 nodes x 4 GPUs)
-#   - Inference engines: 12 (dedicated GPUs)
-#   - Policy/Reference: 8 shared GPUs (colocated via async RLOO-N)
-#   - micro_train_batch_size_per_gpu: 1 (from base micro1x4 config)
-#   - micro_forward_batch_size_per_gpu: 4
-#
-# Inference settings from v2_maxconcurrent variant:
-#   - num_parallel_generation_workers: 768 (increased from 256)
-#   - max_staleness_steps: 12 (increased from 8)
-#   - num_inference_engines: 12 (for 20 total GPUs)
-#
-# AUTO SNAPSHOT: Uses Daytona auto_snapshot feature to reduce rate limits
-#   - auto_snapshot: true (automatically create/reuse snapshots based on Dockerfile hash)
-#   - Snapshot naming: harbor__<hash[:12]>__snapshot
-#
-# Usage:
-#   python -m hpc.launch \
-#       --job_type rl \
-#       --rl_config qwen3_8b_20GPU_thinking_bs64_group8_async_rloo_n_noct_strict_micro1x4_autosnap.yaml \
-#       --job_name qwen3_8b_agentic_async_rloo_n_strict_autosnap_20gpu \
-#       --train_data '["mlfoundations-dev/your-dataset"]' \
-#       --model_path Qwen/Qwen3-8B \
-#       --num_nodes 5
-
-# SkyRL entrypoint module
 entrypoint: examples.terminal_bench.entrypoints.main_tbench
 
 # Hydra config groups (+ prefix in CLI)
@@ -108,7 +79,6 @@ terminal_bench:
       - RewardFileNotFoundError
       - RewardFileEmptyError
       - AgentEnvironmentTimeoutError
-    zero_exceptions:
       - AgentTimeoutError
       - ContextLengthExceededError
     default_error_treatment: zero
@@ -178,7 +148,7 @@ trainer:
   # Policy optimizer
   policy:
     optimizer_config:
-      lr: 1e-6
+      lr: 5e-6
       weight_decay: 0.0
       adam_betas: [0.9, 0.999]
       max_grad_norm: null
