@@ -124,6 +124,10 @@ def maybe_compute_gradient_accumulation(base_config: dict, exp_args: dict) -> di
 
 
 def apply_data_argument_overrides(base_config: dict, exp_args: dict) -> None:
+    tool_call_tag = exp_args.get("tool_call_tag")
+    if tool_call_tag:
+        base_config["tools"] = tool_call_tag
+
     for tag in DATA_ARGUMENT_KEYS:
         if tag in exp_args:
             tag_value = exp_args[tag]
