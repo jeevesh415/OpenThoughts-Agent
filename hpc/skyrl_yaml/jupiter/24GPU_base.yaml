@@ -139,6 +139,7 @@ trainer:
   project_name: OpenThoughts-Agent
   log_level: INFO
   tracker_commit_each_step: true
+  logger: console
 
   # Paths
   run_name: null
