@@ -112,7 +112,7 @@ trainer:
 
   # Training loop settings
   epochs: 2
-  max_steps: 100
+  max_steps: 60
   update_epochs_per_batch: 1
 
   # Batch sizes
