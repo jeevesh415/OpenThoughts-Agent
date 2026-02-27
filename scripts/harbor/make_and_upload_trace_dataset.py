@@ -408,11 +408,13 @@ def main() -> None:
         to_sharegpt=bool(args.to_sharegpt),
         repo_id=None,
         push=False,
-        verbose=True,
+        verbose=False,
         success_filter=success_filter,
         export_subagents=False,
         include_instruction=True,
         include_verifier_output=True,
+        chunk_size=1000,
+        use_rich_progress=True,
     )
     try:
         from scripts.harbor.run_and_export_traces import _finalize_trace_dataset  # type: ignore
