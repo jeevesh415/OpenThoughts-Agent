@@ -141,7 +141,7 @@ def count_tokens(text: str, encoder) -> int:
     if not text:
         return 0
     if encoder is not None:
-        return len(encoder.encode(text))
+        return len(encoder.encode(text, disallowed_special=()))
     return len(text.split())
 
 

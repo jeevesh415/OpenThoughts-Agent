@@ -64,6 +64,12 @@ def _parse_args() -> argparse.Namespace:
         default=None,
         help="Path for plot image (default: <script_dir>/temporal_report.png).",
     )
+    parser.add_argument(
+        "--main-only",
+        action="store_true",
+        default=False,
+        help="Filter to trace_source=='main' rows only (drop summarization sub-traces).",
+    )
     return parser.parse_args()
 
 
@@ -142,7 +148,7 @@ def _precompute_rows(dataset, encoder, max_text_chars: int = 500_000) -> List[Di
         chunk = texts[i : i + BATCH_CHUNK]
         chunk_len = len(chunk)
         if encoder is not None:
-            future = executor.submit(encoder.encode_batch, chunk)
+            future = executor.submit(encoder.encode_batch, chunk, disallowed_special=())
             try:
                 encoded = future.result(timeout=CHUNK_TIMEOUT)
                 for j, tokens in enumerate(encoded):
@@ -356,6 +362,11 @@ def main() -> None:
     print(f"Loading dataset {args.repo} (split={args.split})...")
     dataset = load_hf_trace_dataset(args.repo, split=args.split)
     print(f"Loaded {len(dataset)} rows.")
+
+    if args.main_only and "trace_source" in dataset.column_names:
+        before = len(dataset)
+        dataset = dataset.filter(lambda row: row.get("trace_source") == "main")
+        print(f"Filtered to trace_source=='main': {before} -> {len(dataset)} rows.")
 
     # --- Pre-compute all expensive fields in one pass ----------------------
     all_records = _precompute_rows(dataset, encoder)
