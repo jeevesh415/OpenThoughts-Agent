@@ -593,6 +593,22 @@ def launch_eval_job_v2(exp_args: dict, hpc) -> None:
     trace_engine = str(exp_args.get("trace_engine") or exp_args.get("datagen_engine") or "").lower()
     requires_vllm = bool(vllm_cfg and trace_engine == "vllm_local")
 
+    # Pre-download model for no-internet clusters (JSC).
+    # Must happen on the login node (which has internet) before sbatch submission.
+    from hpc.checkpoint_utils import pre_download_model, is_huggingface_repo
+    eval_model = getattr(vllm_cfg, "model_path", None) if vllm_cfg else None
+    if not eval_model:
+        eval_model = model_name
+    if eval_model and is_huggingface_repo(eval_model):
+        print(f"Pre-downloading model: {eval_model}")
+        dl_result = pre_download_model(eval_model)
+        if vllm_cfg and hasattr(vllm_cfg, "model_path"):
+            vllm_cfg.model_path = dl_result.local_path
+        exp_args["_eval_model_name"] = dl_result.local_path
+        exp_args["trace_model"] = dl_result.local_path
+        model_name = dl_result.local_path
+        print(f"Model available at: {dl_result.local_path}")
+
     gpus_per_node = int(exp_args.get("gpus_per_node") or getattr(hpc, "gpus_per_node", 1) or 1)
     cpus_per_node = int(exp_args.get("cpus_per_node") or getattr(hpc, "cpus_per_node", 24) or 24)
     tensor_parallel_size = getattr(vllm_cfg, "tensor_parallel_size", None) or 1
@@ -693,6 +709,8 @@ def launch_eval_job_v2(exp_args: dict, hpc) -> None:
         "harbor_env": exp_args.get("_eval_env", "daytona"),
         "ray_env_exports": hpc.get_ray_env_exports(experiments_subdir),
         "daytona_api_key_override": get_daytona_api_key_override(exp_args),
+        "ssh_tunnel_setup": hpc.get_ssh_tunnel_setup(),
+        "proxy_setup": hpc.get_proxy_setup(),
     }
 
     sbatch_text = substitute_template(template_text, substitutions)

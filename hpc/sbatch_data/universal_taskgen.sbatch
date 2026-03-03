@@ -97,6 +97,12 @@ export RAY_NOSET_CUDA_VISIBLE_DEVICES=1
 # --- Ray defaults ---
 {ray_env_exports}
 
+# --- SSH Tunneling (JSC clusters only) ---
+{ssh_tunnel_setup}
+
+# --- SOCKS5 Proxy Setup (JSC clusters - alternative to SSH tunnel) ---
+{proxy_setup}
+
 # --- Run the task generation job via Python runner ---
 echo "=== Universal Task Generation Runner ==="
 echo "Config: {config_path}"

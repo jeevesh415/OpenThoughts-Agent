@@ -119,6 +119,12 @@ mkdir -p "{experiments_dir}"
 mkdir -p "{experiments_dir}/logs"
 mkdir -p "{experiments_dir}/ray_logs"
 
+# --- SSH Tunneling (JSC clusters only) ---
+{ssh_tunnel_setup}
+
+# --- SOCKS5 Proxy Setup (JSC clusters - alternative to SSH tunnel) ---
+{proxy_setup}
+
 # --- Cleanup trap to preserve Ray logs ---
 # Ray uses /tmp by default for logs/sockets. This trap copies them to the
 # experiments directory for debugging after the job terminates.

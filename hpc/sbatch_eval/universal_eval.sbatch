@@ -113,6 +113,12 @@ export RAY_NOSET_CUDA_VISIBLE_DEVICES=1
 export TRITON_CACHE_VERBOSE=1
 source "$WORKDIR/hpc/shell_utils/triton_cache.sh"
 
+# --- SSH Tunneling (JSC clusters only) ---
+{ssh_tunnel_setup}
+
+# --- SOCKS5 Proxy Setup (JSC clusters - alternative to SSH tunnel) ---
+{proxy_setup}
+
 # --- Container Runtime Setup ---
 source "$WORKDIR/hpc/shell_utils/container_runtime.sh"
 setup_container_runtime "{harbor_env}" "$WORKDIR" || exit $?
@@ -121,6 +127,20 @@ setup_container_runtime "{harbor_env}" "$WORKDIR" || exit $?
 echo "=== Universal Eval Runner ==="
 echo "Config: {config_path}"
 echo "Working directory: $WORKDIR"
+
+# --- Proxy setup for no-internet clusters ---
+# Uses LD_PRELOAD set by ssh_tunnel_setup (proxychains library approach)
+# This routes external traffic (Daytona API) through proxy while internal traffic goes direct
+# LD_PRELOAD is inherited by all child processes including Ray workers
+if [ -n "${LD_PRELOAD:-}" ]; then
+    echo "Proxy: ENABLED via LD_PRELOAD"
+    echo "  LD_PRELOAD: $LD_PRELOAD"
+    echo "  PROXYCHAINS_CONF_FILE: ${PROXYCHAINS_CONF_FILE:-not set}"
+    echo "  PROXYCHAINS_SOCKS5_HOST: ${PROXYCHAINS_SOCKS5_HOST:-not set}"
+    echo "  PROXYCHAINS_SOCKS5_PORT: ${PROXYCHAINS_SOCKS5_PORT:-not set}"
+else
+    echo "Proxy: DISABLED (direct internet or not configured)"
+fi
 echo "============================="
 
 python -m hpc.eval_launch_utils --config "{config_path}"

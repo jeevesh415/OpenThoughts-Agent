@@ -152,6 +152,24 @@ def launch_datagen_job_v2(exp_args: dict, hpc) -> None:
     engine = str(exp_args.get("datagen_engine") or "openai").lower()
     requires_vllm = bool(vllm_cfg and engine == "vllm_local")
 
+    # Pre-download model for no-internet clusters (JSC).
+    # Must happen on the login node (which has internet) before sbatch submission.
+    # Also avoids race conditions from multiple Ray workers downloading simultaneously.
+    from hpc.checkpoint_utils import pre_download_model, is_huggingface_repo
+    vllm_model = getattr(vllm_cfg, "model_path", None) if vllm_cfg else None
+    datagen_model = exp_args.get("datagen_model") or exp_args.get("trace_model")
+    model_to_download = vllm_model or datagen_model
+    if model_to_download and is_huggingface_repo(model_to_download):
+        print(f"Pre-downloading model: {model_to_download}")
+        dl_result = pre_download_model(model_to_download)
+        if vllm_cfg and hasattr(vllm_cfg, "model_path"):
+            vllm_cfg.model_path = dl_result.local_path
+        if exp_args.get("datagen_model"):
+            exp_args["datagen_model"] = dl_result.local_path
+        if exp_args.get("trace_model"):
+            exp_args["trace_model"] = dl_result.local_path
+        print(f"Model available at: {dl_result.local_path}")
+
     gpus_per_node = int(exp_args.get("gpus_per_node") or getattr(hpc, "gpus_per_node", 0) or 0)
     cpus_per_node = int(exp_args.get("cpus_per_node") or getattr(hpc, "cpus_per_node", 24) or 24)
     tensor_parallel_size = getattr(vllm_cfg, "tensor_parallel_size", None) or 1
@@ -235,6 +253,8 @@ def launch_datagen_job_v2(exp_args: dict, hpc) -> None:
             "email_address": os.environ.get("EMAIL_ADDRESS", ""),
             "ray_env_exports": hpc.get_ray_env_exports(experiments_subdir),
             "daytona_api_key_override": get_daytona_api_key_override(exp_args),
+            "ssh_tunnel_setup": hpc.get_ssh_tunnel_setup(),
+            "proxy_setup": hpc.get_proxy_setup(),
         }
 
         sbatch_text = substitute_template(template_text, substitutions)
@@ -383,6 +403,8 @@ def launch_datagen_job_v2(exp_args: dict, hpc) -> None:
             "harbor_env": harbor_env,
             "ray_env_exports": hpc.get_ray_env_exports(experiments_subdir),
             "daytona_api_key_override": get_daytona_api_key_override(exp_args),
+            "ssh_tunnel_setup": hpc.get_ssh_tunnel_setup(),
+            "proxy_setup": hpc.get_proxy_setup(),
         }
 
         sbatch_text = substitute_template(template_text, substitutions)
