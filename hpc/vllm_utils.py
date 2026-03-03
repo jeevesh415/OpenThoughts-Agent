@@ -258,6 +258,12 @@ class VLLMServer:
         env = os.environ.copy()
         env["VLLM_MODEL_PATH"] = self.config.model_path
         env["PYTHONUNBUFFERED"] = "1"  # Ensure real-time log output
+        # Set VLLM_HOST_IP so vLLM's internal get_ip() returns the real node IP.
+        # This is used for Ray placement group node constraints and NCCL communication,
+        # NOT for the API server bind address (that's --host above).
+        # Without this, vLLM auto-detects 0.0.0.0 on some HPC nodes, causing:
+        #   "No available node types can fulfill resource request {'node:0.0.0.0': ...}"
+        env["VLLM_HOST_IP"] = self.ray_cluster.head_ip
         if self.config.server_config:
             env.update(extra_env_vars)
         # Merge extra env vars from caller (e.g., TIKTOKEN_ENCODINGS_BASE for GPT-OSS)
