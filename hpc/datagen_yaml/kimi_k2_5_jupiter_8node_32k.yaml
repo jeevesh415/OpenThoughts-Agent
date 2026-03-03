@@ -10,7 +10,7 @@
 #
 # Hardware: 8 nodes × 4x GH200 96GB (shared memory) = 32 GPUs (~3TB total)
 #   - INT4 compressed-tensors weights ~600GB → PP=2 (2 nodes per replica)
-#   - TP=4 within node (shared memory), PP=2 across nodes, DP=4 replicas
+#   - TP=4 within node (shared memory), PP=2 across nodes, DP=2 replicas
 #
 engine:
   type: vllm_local
@@ -31,8 +31,8 @@ vllm_server:
   model_path: moonshotai/Kimi-K2.5
   num_replicas: 1
   tensor_parallel_size: 4
-  pipeline_parallel_size: 2
-  data_parallel_size: 4
+  pipeline_parallel_size: 4
+  data_parallel_size: 2
   time_limit: '48:00:00'
   max_model_len: 32768
   max_num_seqs: 16
