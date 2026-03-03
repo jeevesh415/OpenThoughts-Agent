@@ -42,6 +42,11 @@ _OUR_FIELDS = {
     "time_limit",
     "endpoint_json_path",
     "model_path",
+    # Parallelism fields — handled explicitly by VLLMServer.start() as positional args.
+    # Must be excluded here to avoid double-emission (last value wins with argparse).
+    "tensor_parallel_size",
+    "pipeline_parallel_size",
+    "data_parallel_size",
     # Harbor/Daytona engine-specific fields (not vLLM args)
     "type",                   # engine type (e.g., "vllm_local")
     "max_output_tokens",      # Harbor config, not vLLM
