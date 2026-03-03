@@ -1,19 +1,19 @@
-# GLM-5-FP8 - FP8 quantized model with MTP speculative decoding
-# https://huggingface.co/zai-org/GLM-5-FP8
+# Qwen3.5-397B-A17B-AWQ - MoE reasoning model, AWQ 4-bit quantized
+# https://huggingface.co/QuantTrio/Qwen3.5-397B-A17B-AWQ
 #
-# 131K context variant
+# 32K context variant
 #
 # Hardware: 8 nodes × 4x GH200 96GB (shared memory) = 32 GPUs (~3TB total)
-#   - FP8 weights → very memory efficient, ample room for KV cache
-#   - TP=4 within node (shared memory), PP=2 across nodes, DP=4 replicas
+#   - Model weights ~200GB (AWQ 4-bit) → fits in 1 node (TP=4)
+#   - TP=4 within node (shared memory), DP=8 (one replica per node)
 #
 engine:
   type: vllm_local
-  model: zai-org/GLM-5-FP8
+  model: QuantTrio/Qwen3.5-397B-A17B-AWQ
   max_output_tokens: 16384
   healthcheck_interval: 300
   request_params:
-    temperature: 0.7
+    temperature: 1.0
     top_p: 0.95
   vllm_local: {}
 backend:
@@ -23,26 +23,32 @@ backend:
   healthcheck_max_attempts: 160
   healthcheck_retry_delay: 15
 vllm_server:
-  model_path: zai-org/GLM-5-FP8
+  model_path: QuantTrio/Qwen3.5-397B-A17B-AWQ
   num_replicas: 1
   tensor_parallel_size: 4
-  pipeline_parallel_size: 2
-  data_parallel_size: 4
+  pipeline_parallel_size: 1
+  data_parallel_size: 8
   time_limit: '48:00:00'
-  max_model_len: 131072
+  max_model_len: 32768
   max_num_seqs: 50
   gpu_memory_utilization: 0.9
   swap_space: 32
   enable_expert_parallel: true
   enable_auto_tool_choice: true
-  tool_call_parser: glm47
-  reasoning_parser: glm45
+  tool_call_parser: qwen3_coder
+  reasoning_parser: qwen3
   trust_remote_code: true
   extra_args:
-  # KV cache
+  - --language-model-only
+  - --quantization
+  - awq
+  - --dtype
+  - auto
   - --kv-cache-dtype
   - fp8
-  # Prefill/caching optimizations
+  - --enable-chunked-prefill
+  - --max-num-partial-prefills
+  - '1'
   - --enable-prefix-caching
   - --max-num-batched-tokens
-  - '65536'
+  - '16384'
