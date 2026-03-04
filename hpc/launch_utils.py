@@ -47,6 +47,27 @@ _HOSTED_VLLM_DUMMY_API_KEY = "EMPTY"
 CLOUD_JOB_NAME_MAX_LENGTH = 63
 """Maximum job name length for cloud runs (SkyPilot/Kubernetes DNS label limit)."""
 
+# Job-name field separator (two characters for visual clarity in dashboards).
+JOB_NAME_SEP = "__"
+
+# Maximum characters kept for the model component in auto-generated job names.
+MODEL_NAME_MAX_LENGTH = 20
+
+
+def shorten_model_name(raw: str, max_len: int = MODEL_NAME_MAX_LENGTH) -> str:
+    """Return a short, filesystem-safe model label for job names.
+
+    Strips the org/ prefix, replaces non-alphanumeric chars with hyphens,
+    and hard-truncates to *max_len* characters.
+    """
+    name = raw.strip().rstrip("/")
+    if "/" in name:
+        name = name.split("/")[-1]
+    name = re.sub(r"[^A-Za-z0-9._-]+", "-", name).strip("-_")
+    if len(name) > max_len:
+        name = name[:max_len].rstrip("-_")
+    return name or "model"
+
 
 def truncate_for_cloud(job_name: str) -> str:
     """Truncate a job name to be compatible with cloud/SkyPilot runs.
@@ -888,7 +909,10 @@ def sanitize_repo_component(value: Optional[str]) -> Optional[str]:
 
 
 def derive_datagen_job_name(cli_args: Mapping[str, Any]) -> str:
-    """Construct a fallback job name for datagen/trace launches."""
+    """Construct a fallback job name for datagen/trace launches.
+
+    Order: prefix__dataset__model__harbor_config
+    """
 
     def _sanitize_component(value: str) -> str:
         value = value.strip().rstrip("/")
@@ -899,11 +923,9 @@ def derive_datagen_job_name(cli_args: Mapping[str, Any]) -> str:
     def _extract_harbor_config_label(config_path: str) -> str:
         """Extract a short label from harbor config path (e.g., '16concurrency_eval')."""
         filename = Path(config_path).stem  # Remove .yaml extension
-        # Remove common prefixes like 'trace_'
         for prefix in ("trace_", "harbor_"):
             if filename.startswith(prefix):
                 filename = filename[len(prefix):]
-        # Truncate if too long (keep first 30 chars)
         if len(filename) > 30:
             filename = filename[:30].rstrip("-_")
         return filename
@@ -912,34 +934,34 @@ def derive_datagen_job_name(cli_args: Mapping[str, Any]) -> str:
     prefix = "eval" if job_type_hint == JobType.EVAL.value else "datagen"
     parts: list[str] = [prefix]
 
+    # --- dataset first ---
+    dataset_slug = cli_args.get("harbor_dataset")
+    dataset_path = cli_args.get("tasks_input_path") or cli_args.get("eval_dataset_path")
+    if dataset_slug:
+        parts.append(_sanitize_component(str(dataset_slug)))
+    elif dataset_path:
+        parts.append(_sanitize_component(str(dataset_path)))
+
+    # --- then model (truncated) ---
     repo_candidate = cli_args.get("datagen_target_repo") or cli_args.get("trace_target_repo")
     model_candidate = cli_args.get("datagen_model") or cli_args.get("trace_model")
     if model_candidate:
-        parts.append(_sanitize_component(str(model_candidate)))
+        parts.append(shorten_model_name(str(model_candidate)))
     elif repo_candidate:
         parts.append(_sanitize_component(str(repo_candidate)))
 
-    # Include harbor config label for better job identification
+    # --- harbor config label last ---
     harbor_config = cli_args.get("trace_harbor_config")
     if harbor_config:
         config_label = _extract_harbor_config_label(str(harbor_config))
         if config_label:
             parts.append(config_label)
 
-    dataset_component = None
-    dataset_slug = cli_args.get("harbor_dataset")
-    dataset_path = cli_args.get("tasks_input_path") or cli_args.get("eval_dataset_path")
-    if dataset_slug:
-        dataset_component = _sanitize_component(str(dataset_slug))
-    elif dataset_path:
-        dataset_component = _sanitize_component(str(dataset_path))
-    if dataset_component:
-        parts.append(dataset_component)
-
-    job_name = "_".join(filter(None, parts))
+    job_name = JOB_NAME_SEP.join(filter(None, parts))
     if job_type_hint == JobType.EVAL.value:
-        if job_name.startswith("eval_"):
-            job_name = "eval-" + job_name[len("eval_"):]
+        eval_prefix = f"eval{JOB_NAME_SEP}"
+        if job_name.startswith(eval_prefix):
+            job_name = "eval-" + job_name[len(eval_prefix):]
         elif job_name == "eval":
             job_name = "eval-run"
         elif not job_name.startswith("eval-"):
@@ -957,7 +979,7 @@ def derive_consolidate_job_name(cli_args: Mapping[str, Any]) -> str:
         or "consolidate"
     )
     identifier = sanitize_repo_for_job(str(identifier_raw))
-    suffix = "_consolidate"
+    suffix = f"{JOB_NAME_SEP}consolidate"
     max_prefix_len = max(1, 96 - len(suffix))
     if len(identifier) > max_prefix_len:
         identifier = identifier[:max_prefix_len]
@@ -965,63 +987,63 @@ def derive_consolidate_job_name(cli_args: Mapping[str, Any]) -> str:
 
 
 def derive_default_job_name(cli_args: Mapping[str, Any]) -> str:
-    """Construct job names for non-datagen, non-consolidate workloads."""
+    """Construct job names for SFT / RL / SFT-MCA workloads.
 
-    job_name_components: list[str] = []
-    job_name_suffix: Optional[str] = None
+    Order: dataset__model[__extras]
+    The model component is hard-truncated to MODEL_NAME_MAX_LENGTH characters.
+    """
 
+    # ---- extract the two primary components ----------------------------
+    dataset_raw = cli_args.get("dataset") or ""
+    model_raw = cli_args.get("model_name_or_path") or ""
+
+    # Dataset: may be comma-separated (multi-dataset)
+    dataset_parts: list[str] = []
+    for ds in str(dataset_raw).split(","):
+        ds_name = ds.strip().split("/")[-1]
+        if ds_name and ds_name != "None":
+            dataset_parts.append(ds_name)
+    dataset_component = "-".join(dataset_parts) if dataset_parts else ""
+
+    # Model: shortened
+    model_component = shorten_model_name(str(model_raw)) if model_raw and str(model_raw) != "None" else ""
+
+    # ---- collect remaining meaningful args (extras) --------------------
+    extras: list[str] = []
     for key, value in cli_args.items():
         if not isinstance(value, (str, int, float)):
             continue
         if value == "None" or key in JOB_NAME_IGNORE_KEYS:
             continue
-
+        if key in {"dataset", "model_name_or_path"}:
+            continue
         if key == "seed":
             try:
                 if float(value) == 42:
                     continue
             except (TypeError, ValueError):
                 pass
+        value_str = str(value).split("/")[-1]
+        extras.append(value_str)
 
-        if key not in {"dataset", "model_name_or_path"}:
-            job_name_components.append(str(key).replace("_", "-"))
+    # ---- assemble: dataset first, then model, then extras ---------------
+    parts: list[str] = []
+    if dataset_component:
+        parts.append(dataset_component)
+    if model_component:
+        parts.append(model_component)
+    if extras:
+        parts.append("-".join(extras))
 
-        value_str = str(value)
-        if value_str == "Qwen/Qwen2.5-32B-Instruct":
-            job_name_suffix = "_32B"
-        elif value_str == "Qwen/Qwen2.5-14B-Instruct":
-            job_name_suffix = "_14B"
-        elif value_str == "Qwen/Qwen2.5-3B-Instruct":
-            job_name_suffix = "_3B"
-        elif value_str == "Qwen/Qwen2.5-1.5B-Instruct":
-            job_name_suffix = "_1.5B"
-        elif key == "dataset" and "," in value_str:
-            # Multi-dataset: include all dataset names in the job name
-            for ds in value_str.split(","):
-                ds_name = ds.strip().split("/")[-1]
-                if ds_name:
-                    job_name_components.append(ds_name)
-        else:
-            job_name_components.append(value_str.split("/")[-1])
-
-    job_name = "_".join(job_name_components)
+    job_name = JOB_NAME_SEP.join(parts)
     job_name = sanitize_repo_for_job(job_name, keep_periods=False)
-    if job_name_suffix:
-        job_name += job_name_suffix
 
     if len(job_name) > 96:
-        print("Truncating job name to less than HF limit of 96 characters...")
-        job_name = "_".join(
-            "-".join(segment[:4] for segment in chunk.split("-"))
-            for chunk in job_name.split("_")
+        print(
+            f"Warning: Job name {len(job_name)} chars, "
+            f"hard truncating to 96 chars: {job_name[:96]}"
         )
-        if len(job_name) > 96:
-            # Hard truncate to 96 chars with warning instead of failing
-            print(
-                f"Warning: Job name still {len(job_name)} chars after smart truncation, "
-                f"hard truncating to 96 chars: {job_name[:96]}"
-            )
-            job_name = job_name[:96]
+        job_name = job_name[:96].rstrip("-_")
 
     return job_name or "ot_agent_job"
 
@@ -1035,17 +1057,16 @@ def get_job_name(cli_args: Mapping[str, Any]) -> str:
     if job_type in (JobType.DATAGEN.value, JobType.EVAL.value):
         return derive_datagen_job_name(cli_args)
 
-    # SFT, RL, and other job types use derive_default_job_name which includes
-    # all CLI args (learning_rate, batch_size, etc.) except those in JOB_NAME_IGNORE_KEYS
+    # SFT, RL, and other job types
     base_name = derive_default_job_name(cli_args)
 
     # Add job type prefix
     if job_type == JobType.RL.value:
-        return f"rl_{base_name}"
+        return f"rl{JOB_NAME_SEP}{base_name}"
     if job_type == JobType.SFT.value:
-        return f"sft_{base_name}"
+        return f"sft{JOB_NAME_SEP}{base_name}"
     if job_type == JobType.SFT_MCA.value:
-        return f"sft_mca_{base_name}"
+        return f"sft-mca{JOB_NAME_SEP}{base_name}"
     return base_name
 
 def _parse_optional_int(value: Any, label: Optional[str] = None) -> Optional[int]:

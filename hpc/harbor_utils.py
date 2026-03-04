@@ -466,11 +466,13 @@ def default_job_name(prefix: str, dataset_label: str, model_label: str) -> str:
         model_label: Model identifier
 
     Returns:
-        Formatted job name like "eval-dataset-model-20240101_120000"
+        Formatted job name like "eval__dataset__model__20240101_120000"
     """
+    from hpc.launch_utils import shorten_model_name, JOB_NAME_SEP
+
     sanitized_dataset = Path(dataset_label).name.replace("/", "-").replace(" ", "_")
-    sanitized_model = model_label.replace("/", "-").replace(" ", "_")
-    return f"{prefix}-{sanitized_dataset}-{sanitized_model}-{_timestamp()}"
+    sanitized_model = shorten_model_name(model_label)
+    return JOB_NAME_SEP.join([prefix, sanitized_dataset, sanitized_model, _timestamp()])
 
 
 # ---------------------------------------------------------------------------

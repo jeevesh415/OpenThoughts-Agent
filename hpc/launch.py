@@ -134,26 +134,21 @@ def _load_base_train_config(train_config_path: str) -> dict:
         return yaml.safe_load(f.read())
 
 
-def _sanitize_model_component(component: str) -> str:
-    comp = component.strip().rstrip("/")
-    comp = os.path.basename(comp) if comp else component
-    comp = re.sub(r"[^A-Za-z0-9]+", "-", comp).strip("-")
-    return comp or "model"
-
-
 def _maybe_include_model_in_job_name(base_config: dict, exp_args: dict) -> dict:
+    from hpc.launch_utils import shorten_model_name, JOB_NAME_SEP
+
     model_name = base_config.get("model_name_or_path") or exp_args.get("model_name_or_path")
     if not isinstance(model_name, str) or not model_name:
         return exp_args
 
-    model_component = _sanitize_model_component(model_name)
+    model_component = shorten_model_name(model_name)
     current_job_name = exp_args.get("job_name", "")
     if current_job_name and model_component.lower() in current_job_name.lower():
         return exp_args
 
-    suggested = f"{current_job_name}_{model_component}" if current_job_name else model_component
+    suggested = f"{current_job_name}{JOB_NAME_SEP}{model_component}" if current_job_name else model_component
     if len(suggested) > 96:
-        suggested = suggested[:96]
+        suggested = suggested[:96].rstrip("-_")
     print(f"Including model identifier in job name: {current_job_name} -> {suggested}")
     return update_exp_args(exp_args, {"job_name": suggested})
 

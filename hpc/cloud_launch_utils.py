@@ -55,8 +55,8 @@ HARBOR_GIT_URL = "git+https://github.com/laude-institute/harbor.git@penfever/tem
 def derive_cloud_job_name(args: "argparse.Namespace", task_prefix: str = "cloud") -> str:
     """Construct a fallback job name for cloud launches.
 
-    Pattern: {task_prefix}_{cloud_provider}_{model}_{dataset}
-    Example: tracegen_gcp_qwen2.5-7b-instruct_swebench-verified
+    Pattern: {task_prefix}__{dataset}__{model}__{cloud_provider}
+    Example: tracegen__swebench-verified__qwen2.5-7b-instruct__gcp
 
     Args:
         args: Parsed argparse namespace
@@ -66,6 +66,7 @@ def derive_cloud_job_name(args: "argparse.Namespace", task_prefix: str = "cloud"
         Derived job name (max 63 chars for SkyPilot cluster naming)
     """
     import re
+    from hpc.launch_utils import shorten_model_name, JOB_NAME_SEP, truncate_for_cloud
 
     def _sanitize_component(value: str) -> str:
         """Sanitize a string for use in job names."""
@@ -76,18 +77,7 @@ def derive_cloud_job_name(args: "argparse.Namespace", task_prefix: str = "cloud"
 
     parts: list[str] = [task_prefix]
 
-    # Include cloud provider (use first if comma-separated)
-    cloud_provider = getattr(args, "cloud_provider", None)
-    if cloud_provider:
-        first_provider = cloud_provider.split(",")[0].strip()
-        parts.append(_sanitize_component(first_provider))
-
-    # Model component
-    model = getattr(args, "model", None)
-    if model:
-        parts.append(_sanitize_component(str(model)))
-
-    # Dataset component (tasks_input_path, harbor_dataset, dataset, or dataset_path)
+    # Dataset first
     dataset_value = (
         getattr(args, "tasks_input_path", None)
         or getattr(args, "harbor_dataset", None)
@@ -97,10 +87,20 @@ def derive_cloud_job_name(args: "argparse.Namespace", task_prefix: str = "cloud"
     if dataset_value:
         parts.append(_sanitize_component(str(dataset_value)))
 
-    job_name = "_".join(filter(None, parts))
+    # Model (truncated)
+    model = getattr(args, "model", None)
+    if model:
+        parts.append(shorten_model_name(str(model)))
+
+    # Cloud provider last
+    cloud_provider = getattr(args, "cloud_provider", None)
+    if cloud_provider:
+        first_provider = cloud_provider.split(",")[0].strip()
+        parts.append(_sanitize_component(first_provider))
+
+    job_name = JOB_NAME_SEP.join(filter(None, parts))
 
     # SkyPilot cluster names must be valid DNS labels (<= 63 chars, lowercase)
-    from hpc.launch_utils import truncate_for_cloud
     job_name = truncate_for_cloud(job_name).lower()
     return job_name
 
