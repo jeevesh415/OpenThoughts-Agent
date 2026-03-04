@@ -82,6 +82,9 @@ export PYTHONPATH="$WORKDIR:${PYTHONPATH:-}"
 export RAY_EXPERIMENTAL_NOSET_CUDA_VISIBLE_DEVICES=1
 export RAY_NOSET_CUDA_VISIBLE_DEVICES=1
 
+# --- Cluster-specific environment variables ---
+{env_exports}
+
 # --- Ray defaults ---
 {ray_env_exports}
 
