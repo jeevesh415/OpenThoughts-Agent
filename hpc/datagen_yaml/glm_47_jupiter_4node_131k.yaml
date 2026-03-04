@@ -42,5 +42,3 @@ vllm_server:
   - --enable-prefix-caching
   - --max-num-batched-tokens
   - '16384'
-  - --all2all-backend
-  - pplx
