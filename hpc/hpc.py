@@ -294,6 +294,9 @@ class HPC(BaseModel):
         env_parts.append("LD_LIBRARY_PATH=${LD_LIBRARY_PATH:-}")
         env_parts.append("PYTHONPATH=${PYTHONPATH:-}")
         env_parts.append("HF_HOME=${HF_HOME:-}")
+        # Propagate CUDA_HOME so Triton can find ptxas on worker nodes
+        # (set by 'module load CUDA/...' but not always inherited by Ray workers)
+        env_parts.append("CUDA_HOME=${CUDA_HOME:-}")
         return " ".join(env_parts)
 
     def get_nccl_exports(self) -> str:
