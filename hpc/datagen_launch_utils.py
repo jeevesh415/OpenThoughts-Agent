@@ -453,12 +453,17 @@ def launch_datagen_job_v2(exp_args: dict, hpc) -> None:
             suffix = f"_chunk{chunk_idx}" if is_chunked else ""
             chunk_job_name = f"{job_name}_traces{suffix}"
             chunk_hf_repo_id = sanitize_hf_repo_id(f"{base_hf_repo_id}{suffix}") if is_chunked else base_hf_repo_id
+            # Each chunk gets its own experiments subdirectory to avoid output collisions
+            chunk_experiments_dir = (
+                str(Path(experiments_subdir).parent / f"{Path(experiments_subdir).name}{suffix}")
+                if is_chunked else experiments_subdir
+            )
 
             trace_config = TracegenJobConfig(
                 job_name=chunk_job_name,
                 harbor_config=harbor_config_resolved,
                 trace_script=trace_script or "",
-                experiments_dir=experiments_subdir,
+                experiments_dir=chunk_experiments_dir,
                 cluster_name=hpc.name,
                 tasks_input_path=tasks_input_path or "",
                 output_dir=exp_args.get("trace_output_dir"),
@@ -502,7 +507,7 @@ def launch_datagen_job_v2(exp_args: dict, hpc) -> None:
                 "time_limit": exp_args.get("time_limit") or "24:00:00",
                 "num_nodes": str(exp_args.get("num_nodes") or 1),
                 "cpus_per_node": str(exp_args.get("cpus_per_node") or hpc.cpus_per_node),
-                "experiments_dir": experiments_subdir,
+                "experiments_dir": chunk_experiments_dir,
                 "job_name": chunk_job_name,
                 "sbatch_extra_directives": "\n".join(sbatch_directives),
                 "module_commands": hpc.get_module_commands(),
@@ -512,7 +517,7 @@ def launch_datagen_job_v2(exp_args: dict, hpc) -> None:
                 "email_address": os.environ.get("EMAIL_ADDRESS", ""),
                 "harbor_env": harbor_env,
                 "env_exports": hpc.get_env_exports(),
-                "ray_env_exports": hpc.get_ray_env_exports(experiments_subdir),
+                "ray_env_exports": hpc.get_ray_env_exports(chunk_experiments_dir),
                 "daytona_api_key_override": get_daytona_api_key_override(exp_args),
                 "ssh_tunnel_setup": hpc.get_ssh_tunnel_setup(),
                 "proxy_setup": hpc.get_proxy_setup(),
@@ -864,25 +869,52 @@ class TracegenJobRunner:
             self._proxychains_binary = getattr(self._hpc, "proxychains_binary", "") or ""
         return self._hpc
 
-    def _maybe_slice_tasks_for_chunk(self) -> None:
-        """If this is a chunked job, slice tasks_input_path to this chunk's subset.
+    @staticmethod
+    def _is_task_folder_dir(path: Path) -> bool:
+        """Check if path is a directory of pre-extracted task folders (with instruction.md)."""
+        if not path.is_dir():
+            return False
+        # Quick check: any instruction.md under the directory?
+        return any(path.rglob("instruction.md"))
 
-        Loads the full dataset, selects the slice for this chunk, saves to a
-        sub-directory under experiments_dir, and updates config.tasks_input_path.
+    def _slice_task_folders(self, tasks_path: str, chunk_index: int, chunk_size: int) -> str:
+        """Slice a directory of pre-extracted task folders for this chunk.
+
+        Creates a chunk directory with symlinks to the selected task folders.
+        Returns the path to the chunk directory.
         """
-        if self.config.chunk_index is None or not self.config.chunk_size:
-            return
+        p = Path(tasks_path)
+        # Collect all task directories (containing instruction.md), sorted for determinism
+        task_dirs = sorted(
+            d.parent for d in p.rglob("instruction.md") if d.is_file()
+        )
+        total = len(task_dirs)
+        start = chunk_index * chunk_size
+        end = min(start + chunk_size, total)
+        if start >= total:
+            print(f"[chunk] Warning: chunk {chunk_index} start ({start}) >= total task folders ({total}), nothing to process")
+            end = start
 
-        chunk_index = self.config.chunk_index
-        chunk_size = self.config.chunk_size
-        tasks_path = self.config.tasks_input_path
-        if not tasks_path:
-            print(f"[chunk] Warning: chunk_index={chunk_index} set but no tasks_input_path, skipping slice")
-            return
+        chunk_dir = Path(self.config.experiments_dir) / "task_chunks" / f"chunk_{chunk_index}"
+        chunk_dir.mkdir(parents=True, exist_ok=True)
 
+        selected = task_dirs[start:end]
+        for task_dir in selected:
+            link = chunk_dir / task_dir.name
+            if not link.exists():
+                link.symlink_to(task_dir.resolve())
+
+        print(f"[chunk] Chunk {chunk_index}/{self.config.num_chunks}: "
+              f"task folders [{start}:{end}] ({len(selected)} of {total}) linked in {chunk_dir}")
+        return str(chunk_dir)
+
+    def _slice_hf_dataset(self, tasks_path: str, chunk_index: int, chunk_size: int) -> str:
+        """Slice an HF dataset (Arrow/Parquet/JSONL) for this chunk.
+
+        Saves the chunk to disk and returns the path.
+        """
         from datasets import load_from_disk, load_dataset
 
-        # Load full dataset
         try:
             ds = load_from_disk(tasks_path)
             if hasattr(ds, "keys"):
@@ -896,21 +928,38 @@ class TracegenJobRunner:
         end = min(start + chunk_size, total)
         if start >= total:
             print(f"[chunk] Warning: chunk {chunk_index} start ({start}) >= total tasks ({total}), nothing to process")
-            # Write an empty dataset so Harbor exits cleanly
             end = start
 
         ds_chunk = ds.select(range(start, end))
 
-        # Save chunk to a persistent directory (not /tmp, survives across srun invocations)
         chunk_dir = Path(self.config.experiments_dir) / "task_chunks" / f"chunk_{chunk_index}"
         chunk_dir.mkdir(parents=True, exist_ok=True)
         ds_chunk.save_to_disk(str(chunk_dir))
 
         print(f"[chunk] Chunk {chunk_index}/{self.config.num_chunks}: "
               f"tasks [{start}:{end}] ({len(ds_chunk)} of {total}) saved to {chunk_dir}")
+        return str(chunk_dir)
 
-        # Override the input path so Harbor reads only this chunk
-        self.config.tasks_input_path = str(chunk_dir)
+    def _maybe_slice_tasks_for_chunk(self) -> None:
+        """If this is a chunked job, slice tasks_input_path to this chunk's subset.
+
+        Supports both HF datasets (Arrow/Parquet/JSONL) and pre-extracted task
+        folder directories (containing instruction.md markers).
+        """
+        if self.config.chunk_index is None or not self.config.chunk_size:
+            return
+
+        chunk_index = self.config.chunk_index
+        chunk_size = self.config.chunk_size
+        tasks_path = self.config.tasks_input_path
+        if not tasks_path:
+            print(f"[chunk] Warning: chunk_index={chunk_index} set but no tasks_input_path, skipping slice")
+            return
+
+        if self._is_task_folder_dir(Path(tasks_path)):
+            self.config.tasks_input_path = self._slice_task_folders(tasks_path, chunk_index, chunk_size)
+        else:
+            self.config.tasks_input_path = self._slice_hf_dataset(tasks_path, chunk_index, chunk_size)
 
     def run(self) -> int:
         """Execute the trace generation job.
