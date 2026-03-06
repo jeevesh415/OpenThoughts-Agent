@@ -47,6 +47,27 @@ if [ -z "${{DCFT:-}}" ]; then
   fi
 fi
 
+# --- SSH Tunneling (JSC clusters only) ---
+{ssh_tunnel_setup}
+
+# --- SOCKS5 Proxy Setup (JSC clusters - alternative to SSH tunnel) ---
+{proxy_setup}
+
+# --- Proxy status and PROXY_CMD setup ---
+# Jupiter/Leonardo: PROXYCHAINS_BINARY wraps commands (LD_PRELOAD unreliable on ARM)
+# Jureca/Juwels: LD_PRELOAD inherited by child processes automatically
+PROXY_CMD=""
+if [ -n "${{PROXYCHAINS_BINARY:-}}" ] && [ -n "${{PROXYCHAINS_CONF_FILE:-}}" ]; then
+    PROXY_CMD="${{PROXYCHAINS_BINARY}} -f ${{PROXYCHAINS_CONF_FILE}}"
+    echo "Proxy: ENABLED via wrapped binary"
+    echo "  PROXY_CMD: $PROXY_CMD"
+elif [ -n "${{LD_PRELOAD:-}}" ]; then
+    echo "Proxy: ENABLED via LD_PRELOAD"
+    echo "  LD_PRELOAD: $LD_PRELOAD"
+else
+    echo "Proxy: DISABLED (direct internet or not configured)"
+fi
+
 mkdir -p "{experiments_dir}"
 mkdir -p "{experiments_dir}/logs"
 
@@ -58,7 +79,7 @@ export CONSOLIDATE_WORKDIR="{consolidate_workdir}"
 export CONSOLIDATE_COMMIT_MESSAGE="{consolidate_commit_message}"
 export CONSOLIDATE_PUSH_TO_HUB="{consolidate_push_to_hub}"
 
-python3 {python_script} \
+$PROXY_CMD python3 {python_script} \
   --input "${{CONSOLIDATE_INPUT}}" \
   --input-kind "${{CONSOLIDATE_INPUT_KIND}}" \
   --output-repo "${{CONSOLIDATE_OUTPUT_REPO}}" \
