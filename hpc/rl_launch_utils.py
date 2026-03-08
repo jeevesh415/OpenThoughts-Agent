@@ -114,12 +114,21 @@ def prebuild_daytona_snapshots(
     skipped = 0
     for hash_val, env_dir in hash_to_env_dir.items():
         snapshot_name = f"harbor__{hash_val}__{target_region}__snapshot"
-        # Check if snapshot already exists
+        # Check if snapshot already exists and is usable
         try:
             snap = daytona.snapshot.get(snapshot_name)
-            print(f"  {snapshot_name}: already exists (status={getattr(snap, 'status', 'unknown')}), skipping")
-            skipped += 1
-            continue
+            state = getattr(snap, 'state', None)
+            if state is not None and str(state).upper() in ("ACTIVE", "SNAPSHOTSTATE.ACTIVE"):
+                print(f"  {snapshot_name}: already ACTIVE, skipping")
+                skipped += 1
+                continue
+            # Snapshot exists but is not ACTIVE (PENDING/ERROR/BUILD_FAILED) —
+            # delete and rebuild so we don't get stuck with a broken snapshot.
+            print(f"  {snapshot_name}: exists but state={state}, deleting and rebuilding")
+            try:
+                daytona.snapshot.delete(snap)
+            except Exception as del_err:
+                print(f"  {snapshot_name}: WARNING failed to delete: {del_err}")
         except DaytonaNotFoundError:
             pass
 

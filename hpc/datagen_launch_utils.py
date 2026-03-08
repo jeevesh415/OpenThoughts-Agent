@@ -995,7 +995,13 @@ class TracegenJobRunner:
             raise
 
     def _maybe_upload_traces(self) -> None:
-        """Upload traces to HuggingFace after Harbor completes."""
+        """Upload traces to HuggingFace after Harbor completes.
+
+        On no-internet clusters (JSC), the upload runs as a subprocess wrapped
+        with proxychains so that HuggingFace Hub API calls are routed through
+        the SSH tunnel proxy.  On clusters with direct internet access the
+        upload runs in-process for simplicity.
+        """
         if not self.config.hf_repo_id:
             print("[upload] No HF repo configured; skipping upload.")
             return
@@ -1007,6 +1013,57 @@ class TracegenJobRunner:
             print(f"[upload] Job directory {job_dir} does not exist; skipping upload.")
             return
 
+        # On no-internet clusters using proxychains binary mode (e.g., Jupiter ARM),
+        # LD_PRELOAD is NOT inherited so in-process HTTP calls have no proxy.
+        # Run the upload as a subprocess wrapped with proxychains instead.
+        proxychains_binary = getattr(self, "_proxychains_binary", "")
+        proxychains_conf = os.environ.get("PROXYCHAINS_CONF_FILE", "") if proxychains_binary else ""
+
+        if proxychains_binary:
+            self._upload_traces_via_subprocess(job_dir, proxychains_binary, proxychains_conf)
+        else:
+            self._upload_traces_in_process(job_dir)
+
+    def _upload_traces_via_subprocess(
+        self, job_dir: Path, proxychains_binary: str, proxychains_conf: str
+    ) -> None:
+        """Upload traces as a proxychains-wrapped subprocess (for no-internet clusters)."""
+        cmd = [
+            sys.executable, "-c",
+            "import sys, os; "
+            "sys.path.insert(0, os.environ.get('OT_AGENT', '.')); "
+            "from hpc.launch_utils import upload_traces_to_hf; "
+            f"upload_traces_to_hf("
+            f"job_dir={str(job_dir)!r}, "
+            f"hf_repo_id={self.config.hf_repo_id!r}, "
+            f"hf_private={self.config.hf_private!r}, "
+            f"hf_episodes={self.config.hf_episodes!r})"
+        ]
+        if proxychains_binary and proxychains_conf:
+            print(f"[upload] Using proxychains: {proxychains_binary} -f {proxychains_conf}", flush=True)
+            cmd = [proxychains_binary, "-f", proxychains_conf] + cmd
+        elif proxychains_binary:
+            print(f"[upload] Using proxychains: {proxychains_binary}", flush=True)
+            cmd = [proxychains_binary] + cmd
+
+        print(f"[upload] Uploading traces via subprocess to {self.config.hf_repo_id}", flush=True)
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+            if result.stdout:
+                print(result.stdout)
+            if result.returncode != 0:
+                print(f"[upload] Subprocess upload failed (exit {result.returncode})", file=sys.stderr)
+                if result.stderr:
+                    print(result.stderr, file=sys.stderr)
+            else:
+                print(f"[upload] Subprocess upload completed successfully", flush=True)
+        except subprocess.TimeoutExpired:
+            print("[upload] Subprocess upload timed out after 600s", file=sys.stderr)
+        except Exception as e:
+            print(f"[upload] Subprocess upload error: {e}", file=sys.stderr)
+
+    def _upload_traces_in_process(self, job_dir: Path) -> None:
+        """Upload traces directly in-process (for clusters with internet access)."""
         from hpc.launch_utils import upload_traces_to_hf
 
         try:
