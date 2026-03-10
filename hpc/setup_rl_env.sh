@@ -244,6 +244,15 @@ uv venv "$RL_ENV_DIR" --python "$PYTHON_VERSION" --python-preference managed --l
 echo "Activating environment..."
 source "$RL_ENV_DIR/bin/activate"
 
+# Ensure pip is available inside the venv (some systems create venvs without it)
+if ! "$RL_ENV_DIR/bin/python" -m pip --version &> /dev/null; then
+    echo "Bootstrapping pip into the venv (ensurepip)..."
+    "$RL_ENV_DIR/bin/python" -m ensurepip || {
+        echo "ensurepip failed, using get-pip.py..."
+        curl -sS https://bootstrap.pypa.io/get-pip.py | "$RL_ENV_DIR/bin/python"
+    }
+fi
+
 echo "Installing RL dependencies..."
 
 # =============================================================================

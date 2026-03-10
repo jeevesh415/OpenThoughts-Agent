@@ -145,6 +145,10 @@ class LlamaFactoryArgs:
     assistant_tag: Optional[str] = field(
         default="gpt", metadata={"help": "Assistant tag for the dataset"}
     )
+    tool_call_tag: Optional[str] = field(
+        default=None,
+        metadata={"help": "Tools column in ShareGPT datasets (maps to LlamaFactory 'tools' field)"},
+    )
     mix_strategy: Optional[str] = field(
         default=None,
         metadata={
@@ -431,6 +435,12 @@ class LaunchArgs:
             "help": "Enable Megatron Core Adapter integration (sets USE_MCA=1 for SFT jobs)",
             "store_true": True,
         },
+    )
+
+    # Daytona API key override (takes precedence over secrets.env)
+    daytona_api_key: Optional[str] = field(
+        default=None,
+        metadata={"help": "Override DAYTONA_API_KEY (takes precedence over secrets.env)"}
     )
 
 
@@ -728,6 +738,22 @@ class RLArgs:
             "store_true": True,
         }
     )
+    trace_upload_enabled: Optional[bool] = field(
+        default=None,
+        metadata={"help": "Enable post-training trace upload to HuggingFace (overrides YAML config)"}
+    )
+    trace_upload_repo_org: Optional[str] = field(
+        default=None,
+        metadata={"help": "HuggingFace org for trace upload repo (default: DCAgent)"}
+    )
+    trace_upload_episodes: Optional[str] = field(
+        default=None,
+        metadata={"help": "Which episodes to upload: 'last' or 'all' (default: last)"}
+    )
+    trace_upload_dataset_type: Optional[str] = field(
+        default=None,
+        metadata={"help": "Dataset type for trace upload registration: 'SFT' or 'RL' (default: SFT)"}
+    )
 
 
 def _option_strings(field_name: str) -> list[str]:
@@ -892,6 +918,12 @@ def parse_args():
     _add_dataclass_arguments(train_group, LlamaFactoryArgs, bool_fields=bool_keys)
 
     args = parser.parse_args()
+
+    # --model is an alias for --trace_model (eval/datagen) but also doubles as
+    # shorthand for --model_name_or_path (SFT) when the latter is unset.
+    if getattr(args, "trace_model", None) and not getattr(args, "model_name_or_path", None):
+        args.model_name_or_path = args.trace_model
+
     args_dict = {k: v for k, v in vars(args).items() if v is not None}
     args_dict["_explicit_cli_keys"] = explicit_cli_keys
     literal_none_keys = {"datagen_engine", "trace_engine", "datagen_backend", "trace_backend"}

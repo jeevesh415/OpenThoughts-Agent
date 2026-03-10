@@ -294,6 +294,41 @@ def build_endpoint_meta(endpoint_url: str) -> Dict[str, str]:
     }
 
 
+def derive_vllm_supports_tool_calling(vllm_cfg: Any) -> Optional[bool]:
+    """Determine if vLLM tool calling is enabled based on config.
+
+    Returns:
+        True if tool_call_parser is set, False if explicitly absent, None if unknown.
+    """
+    if vllm_cfg is None:
+        return None
+
+    tool_call_parser = None
+
+    if hasattr(vllm_cfg, "tool_call_parser"):
+        tool_call_parser = getattr(vllm_cfg, "tool_call_parser", None)
+    elif isinstance(vllm_cfg, dict):
+        tool_call_parser = vllm_cfg.get("tool_call_parser")
+
+    if tool_call_parser:
+        return True
+
+    extra_args = None
+    if hasattr(vllm_cfg, "extra_args"):
+        extra_args = getattr(vllm_cfg, "extra_args", None)
+    elif isinstance(vllm_cfg, dict):
+        extra_args = vllm_cfg.get("extra_args")
+
+    if isinstance(extra_args, dict):
+        if extra_args.get("tool_call_parser") or extra_args.get("tool-call-parser"):
+            return True
+    elif isinstance(extra_args, (list, tuple)):
+        for entry in extra_args:
+            if isinstance(entry, str) and "tool_call_parser" in entry:
+                return True
+
+    return False
+
 def load_endpoint_metadata(endpoint_json: Path) -> Dict[str, Any]:
     """Load and parse vLLM endpoint metadata from JSON file.
 
@@ -431,11 +466,13 @@ def default_job_name(prefix: str, dataset_label: str, model_label: str) -> str:
         model_label: Model identifier
 
     Returns:
-        Formatted job name like "eval-dataset-model-20240101_120000"
+        Formatted job name like "eval__dataset__model__20240101_120000"
     """
+    from hpc.launch_utils import shorten_model_name, JOB_NAME_SEP
+
     sanitized_dataset = Path(dataset_label).name.replace("/", "-").replace(" ", "_")
-    sanitized_model = model_label.replace("/", "-").replace(" ", "_")
-    return f"{prefix}-{sanitized_dataset}-{sanitized_model}-{_timestamp()}"
+    sanitized_model = shorten_model_name(model_label)
+    return JOB_NAME_SEP.join([prefix, sanitized_dataset, sanitized_model, _timestamp()])
 
 
 # ---------------------------------------------------------------------------
@@ -594,6 +631,12 @@ def build_harbor_command(
     # create a fresh AgentConfig and lose settings like override_setup_timeout_sec.
     modified_config = copy.deepcopy(harbor_config_data)
 
+    # Sync orchestrator.n_concurrent_trials with the resolved value so the
+    # merged config is an accurate record of what was actually used.
+    if "orchestrator" not in modified_config:
+        modified_config["orchestrator"] = {}
+    modified_config["orchestrator"]["n_concurrent_trials"] = n_concurrent
+
     # Update all agents in the config with model_name and merged kwargs
     agents = modified_config.get("agents", [])
     for agent in agents:
@@ -635,11 +678,49 @@ def build_harbor_command(
         str(n_attempts),
     ]
 
-    # Add dataset (slug or path)
+    # Add dataset (slug or path).
+    # CLI dataset flags take top priority — clear the YAML datasets so there is
+    # no ambiguity between YAML placeholder paths and the actual dataset.
     if dataset_slug:
+        # Clear YAML datasets so Harbor only sees the CLI --dataset flag.
+        modified_config.pop("datasets", None)
+        modified_config.pop("tasks", None)
+        with open(merged_config_path, "w") as f:
+            yaml.safe_dump(modified_config, f)
         cmd.extend(["--dataset", dataset_slug])
     elif dataset_path:
-        cmd.extend(["-p", dataset_path])
+        # Replace YAML datasets entirely with the provided path.
+        modified_config["datasets"] = [{"path": dataset_path}]
+        modified_config.pop("tasks", None)
+        with open(merged_config_path, "w") as f:
+            yaml.safe_dump(modified_config, f)
+    else:
+        # Neither dataset_slug nor dataset_path provided.  Strip the YAML
+        # placeholder (if any) so we fail fast with a clear message rather
+        # than having Harbor attempt to load a bogus placeholder path.
+        _placeholder = "/replace/with/tasks/path"
+        yaml_datasets = modified_config.get("datasets") or []
+        if yaml_datasets and any(
+            d.get("path", "") == _placeholder for d in yaml_datasets if isinstance(d, dict)
+        ):
+            modified_config.pop("datasets", None)
+            modified_config.pop("tasks", None)
+            with open(merged_config_path, "w") as f:
+                yaml.safe_dump(modified_config, f)
+
+        # Final safety check: merged config must have datasets, tasks, or a
+        # --dataset CLI flag.  Without any of these Harbor will error with
+        # "Either datasets or tasks must be provided."
+        has_datasets = bool(modified_config.get("datasets"))
+        has_tasks = bool(modified_config.get("tasks"))
+        has_cli_dataset = "--dataset" in cmd
+        if not (has_datasets or has_tasks or has_cli_dataset):
+            raise ValueError(
+                "[build_harbor_command] BUG: No datasets, tasks, or --dataset flag. "
+                f"dataset_slug={dataset_slug!r}, dataset_path={dataset_path!r}. "
+                "The merged config will cause Harbor to fail. "
+                "Ensure --dataset_path or --dataset is provided."
+            )
 
     # Add jobs_dir if specified
     if jobs_dir:
