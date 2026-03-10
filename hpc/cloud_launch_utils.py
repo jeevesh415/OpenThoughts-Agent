@@ -580,10 +580,33 @@ def prepare_hf_dataset_for_sync(
     parquet_files = list(snapshot_dir.rglob("*.parquet"))
 
     if is_raw_tasks_directory(snapshot_dir):
-        # Raw files format - use directly (task-* or other dirs with instruction.md)
+        # Raw files format — but the HF cache uses symlinks to a blob store
+        # (e.g. instruction.md -> ../../../blobs/<hash>).  These relative
+        # symlinks break when SkyPilot rsyncs only the snapshot directory to
+        # the VM.  Copy with dereferencing so the VM gets real files.
         if verbose:
             print(f"[hf-prep] Detected raw task directories (format has instruction.md files)")
-        return snapshot_dir
+
+        import shutil
+
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        if output_path.exists():
+            if verbose:
+                print(f"[hf-prep] Reusing cached copy at {output_path}")
+            return output_path
+
+        if verbose:
+            print(f"[hf-prep] Copying with symlink dereferencing to {output_path}")
+        shutil.copytree(
+            str(snapshot_dir),
+            str(output_path),
+            symlinks=False,          # dereference symlinks → real files
+            dirs_exist_ok=False,
+        )
+        if verbose:
+            task_count = sum(1 for d in output_path.iterdir() if d.is_dir() and not d.name.startswith('.'))
+            print(f"[hf-prep] Copied {task_count} task directories")
+        return output_path
 
     elif parquet_files:
         # Parquet format - extract first

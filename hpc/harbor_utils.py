@@ -694,6 +694,33 @@ def build_harbor_command(
         modified_config.pop("tasks", None)
         with open(merged_config_path, "w") as f:
             yaml.safe_dump(modified_config, f)
+    else:
+        # Neither dataset_slug nor dataset_path provided.  Strip the YAML
+        # placeholder (if any) so we fail fast with a clear message rather
+        # than having Harbor attempt to load a bogus placeholder path.
+        _placeholder = "/replace/with/tasks/path"
+        yaml_datasets = modified_config.get("datasets") or []
+        if yaml_datasets and any(
+            d.get("path", "") == _placeholder for d in yaml_datasets if isinstance(d, dict)
+        ):
+            modified_config.pop("datasets", None)
+            modified_config.pop("tasks", None)
+            with open(merged_config_path, "w") as f:
+                yaml.safe_dump(modified_config, f)
+
+        # Final safety check: merged config must have datasets, tasks, or a
+        # --dataset CLI flag.  Without any of these Harbor will error with
+        # "Either datasets or tasks must be provided."
+        has_datasets = bool(modified_config.get("datasets"))
+        has_tasks = bool(modified_config.get("tasks"))
+        has_cli_dataset = "--dataset" in cmd
+        if not (has_datasets or has_tasks or has_cli_dataset):
+            raise ValueError(
+                "[build_harbor_command] BUG: No datasets, tasks, or --dataset flag. "
+                f"dataset_slug={dataset_slug!r}, dataset_path={dataset_path!r}. "
+                "The merged config will cause Harbor to fail. "
+                "Ensure --dataset_path or --dataset is provided."
+            )
 
     # Add jobs_dir if specified
     if jobs_dir:

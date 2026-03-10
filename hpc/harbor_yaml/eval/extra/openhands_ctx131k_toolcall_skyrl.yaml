@@ -72,7 +72,11 @@ verifier:
   max_timeout_sec:
   disable: false
 
-metrics: []
+metrics:
+  - type: mean-drop-ei
+    kwargs: {}
+  - type: accuracy-drop-ei
+    kwargs: {}
 
 agents:
 - name: openhands
