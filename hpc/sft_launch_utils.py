@@ -183,6 +183,49 @@ def configure_sft_reporting(base_config: dict, exp_args: dict, model_path: str) 
 _REASONING_TEMPLATES = {"qwen3"}
 
 
+def _apply_nothink_config_overrides(base_config: dict, exp_args: dict) -> None:
+    """Load a ``_nothink`` config variant and apply differing values.
+
+    When auto-detection switches from a thinking to a nothink template, the
+    corresponding ``_nothink`` YAML file may contain different hyperparameters
+    (e.g. ``save_steps``).  This function derives the nothink config path from
+    the original ``train_config_path``, loads it, and merges any values that
+    differ from the current config — *except* keys that are managed by the
+    launch pipeline (``template``, ``dataset``, ``dataset_dir``).
+    """
+    original_path = exp_args.get("train_config_path")
+    if not original_path:
+        return
+
+    original = Path(original_path)
+    # Derive nothink path: foo.yaml -> foo_nothink.yaml
+    nothink_path = original.with_stem(original.stem + "_nothink")
+    if not nothink_path.exists():
+        return
+
+    try:
+        with open(nothink_path, "r") as f:
+            nothink_config = yaml.safe_load(f.read()) or {}
+    except Exception:
+        return
+
+    # Keys managed by the pipeline — never override from the nothink file.
+    _SKIP_KEYS = {"template", "dataset", "dataset_dir"}
+    applied: list[str] = []
+    for key, value in nothink_config.items():
+        if key in _SKIP_KEYS:
+            continue
+        if base_config.get(key) != value:
+            base_config[key] = value
+            applied.append(key)
+
+    if applied:
+        print(
+            f"[prep_for_thinking] Applied overrides from {nothink_path.name}: "
+            f"{', '.join(applied)}"
+        )
+
+
 def maybe_preprocess_thinking(
     base_config: dict,
     exp_args: dict,
@@ -230,6 +273,46 @@ def maybe_preprocess_thinking(
             print(f"[prep_for_thinking] Downloading {ds_path} for preprocessing...")
             ds_path = snapshot_download(repo_id=ds_path, repo_type="dataset")
 
+<<<<<<< Updated upstream
+=======
+    # Auto-detect: should we use thinking or nothink template?
+    thinking_rate, n_think, n_total = _estimate_thinking_rate(
+        local_paths, role_tag=role_tag, content_tag=content_tag,
+    )
+    print(
+        f"[prep_for_thinking] Thinking rate: {thinking_rate:.1%} "
+        f"({n_think}/{n_total} sampled assistant messages have real <think> content)"
+    )
+
+    # Decide template based on thinking rate, but always preprocess below.
+    use_nothink = False
+    if thinking_rate < _THINKING_RATE_THRESHOLD:
+        nothink_template = _NOTHINK_TEMPLATE_MAP.get(template)
+        if nothink_template:
+            print(
+                f"[prep_for_thinking] Majority of data has no thinking blocks "
+                f"({thinking_rate:.1%} < {_THINKING_RATE_THRESHOLD:.0%} threshold). "
+                f"Switching template: {template} -> {nothink_template}"
+            )
+            base_config["template"] = nothink_template
+            use_nothink = True
+            # Try to load the _nothink config variant for any additional
+            # overrides (e.g. different save_steps, hyperparams).
+            _apply_nothink_config_overrides(base_config, exp_args)
+        else:
+            print(
+                f"[prep_for_thinking] WARNING: No nothink variant for template "
+                f"'{template}'. Proceeding with thinking preprocessing."
+            )
+
+    # Always preprocess: normalises format, captures free-text reasoning,
+    # and prints per-dataset stats regardless of template choice.
+    print(f"[prep_for_thinking] Preprocessing data for template '{base_config['template']}'")
+    from scripts.datagen.prep_for_thinking import preprocess_local_dataset
+
+    new_paths: list[str] = []
+    for ds_path in local_paths:
+>>>>>>> Stashed changes
         processed_path = preprocess_local_dataset(
             ds_path,
             role_tag=role_tag,
