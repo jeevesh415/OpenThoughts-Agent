@@ -689,8 +689,15 @@ def build_harbor_command(
             yaml.safe_dump(modified_config, f)
         cmd.extend(["--dataset", dataset_slug])
     elif dataset_path:
-        # Replace YAML datasets entirely with the provided path.
-        modified_config["datasets"] = [{"path": dataset_path}]
+        # Replace YAML datasets path with the provided path, preserving
+        # other dataset-level fields like n_tasks from the original config.
+        yaml_datasets = modified_config.get("datasets") or [{}]
+        base_dataset = yaml_datasets[0] if yaml_datasets else {}
+        if isinstance(base_dataset, dict):
+            base_dataset["path"] = dataset_path
+        else:
+            base_dataset = {"path": dataset_path}
+        modified_config["datasets"] = [base_dataset]
         modified_config.pop("tasks", None)
         with open(merged_config_path, "w") as f:
             yaml.safe_dump(modified_config, f)
@@ -740,13 +747,13 @@ def build_harbor_command(
     # sandbox creation / rate limits don't permanently fail tasks.
     if not _flag_present("--auto-resume"):
         extra_args.append("--auto-resume")
-    if not _flag_present("--auto-resume-filter-error-type"):
+    if not _flag_present("--filter-error-type"):
         for err_type in (
             "DaytonaRateLimitError",
             "EnvironmentStartTimeoutError",
             "DaytonaError",
         ):
-            extra_args.extend(["--auto-resume-filter-error-type", err_type])
+            extra_args.extend(["--filter-error-type", err_type])
 
     if not (_flag_present("--export-traces") or _flag_present("--no-export-traces")):
         extra_args.append("--export-traces")
